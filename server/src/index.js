@@ -3,21 +3,27 @@ const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./middlewares/errorHandler');
 const connectDB = require('./config/db');
+const mongoose = require('mongoose');
 
 const app = express();
 
-// Initialize database connection for Vercel
+// Global connection state for serverless
 let isConnected = false;
 
 const connectDatabase = async () => {
-  if (!isConnected) {
-    try {
-      await connectDB();
-      isConnected = true;
-      console.log('Database connected successfully');
-    } catch (error) {
-      console.error('Database connection error:', error);
-    }
+  if (mongoose.connections[0].readyState) {
+    // Use existing database connection
+    console.log('Using existing database connection');
+    return;
+  }
+
+  try {
+    await connectDB();
+    isConnected = true;
+    console.log('New database connection established');
+  } catch (error) {
+    console.error('Database connection error:', error);
+    throw error;
   }
 };
 
