@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+*/node_modules
+
+# Development files
+*.log
+.DS_Store
+.env*
+!.env.example
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
+
+# Build artifacts (except dist for static files)
+server/dist
+server/build
+
+# Local development
+server/uploads
+*.tgz
+*.tar.gz
+
+# Documentation
+README.md
+*/README.md
+TESTING_CHECKLIST.md
+API_Documentation.md
+CLOUDINARY_INTEGRATION_GUIDE.md
+ENVIRONMENT_SETUP.md
+POSTMAN_TESTING_GUIDE.md
+USER_FLOWS_DOCUMENTATION.md
+
+# Test files
+*.test.js
+*.spec.js
+test/
+tests/
+__tests__/
+
+# Postman collections
+*.postman_collection.json
+*.postman_environment.json
+
+# Seed and test data
+seedData.js
+testModels.js

@@ -1,0 +1,30 @@
+{
+  "name": "servisbeta-project",
+  "version": "1.0.0",
+  "description": "ServisbetA - Business Review Platform",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build": "cd client && npm run build",
+    "build:client": "cd client && npm run build",
+    "test:build": "node scripts/pre-deploy-test.js",
+    "test:server": "cd server && node -e \"process.env.MONGO_URI='test'; process.env.NODE_ENV='test'; try { const app = require('./src/index.js'); const serverless = require('./api/index.js'); console.log('✅ Server deployment test passed!'); } catch(e) { console.log('❌ Server test failed:', e.message); process.exit(1); }\"",
+    "deploy:vercel": "vercel --prod",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "business",
+    "reviews",
+    "platform",
+    "react",
+    "nodejs",
+    "mongodb"
+  ],
+  "author": "ServisbetA Team",
+  "license": "MIT"
+}
