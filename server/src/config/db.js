@@ -7,11 +7,10 @@ const connectDB = async () => {
     }
     
     await mongoose.connect(process.env.MONGO_URI, {
-      // Removed deprecated options for MongoDB Driver 4.0+
+      // Modern MongoDB connection options
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      bufferCommands: false, // Disable mongoose buffering
-      bufferMaxEntries: 0 // Disable mongoose buffering
+      maxPoolSize: 10 // Maintain up to 10 socket connections
+      // Removed bufferCommands and maxBufferSize - not needed for modern setups
     });
     console.log('MongoDB connected successfully');
   } catch (err) {

@@ -6,8 +6,8 @@ const reviewSchema = new mongoose.Schema({
     type: Number, 
     required: true,
     min: 1,
-    max: 5,
-    index: -1
+    max: 5
+    // Removed index: -1 to avoid duplication with separate index definition
   },
   title: { 
     type: String,
@@ -45,22 +45,22 @@ const reviewSchema = new mongoose.Schema({
   user: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
-    required: true,
-    index: true
+    required: true
+    // Removed index: true to avoid duplication with separate index definition
   },
   business: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Business', 
-    required: true,
-    index: true
+    required: true
+    // Removed index: true to avoid duplication with separate index definition
   },
   
   // Moderation & Status
   status: { 
     type: String, 
     enum: ['published', 'pending', 'flagged', 'removed', 'draft'], 
-    default: 'published',
-    index: true
+    default: 'published'
+    // Removed index: true to avoid duplication with separate index definition
   },
   moderationNotes: { 
     type: String,
@@ -195,7 +195,7 @@ reviewSchema.index({ business: 1 });
 reviewSchema.index({ business: 1, createdAt: -1 });
 reviewSchema.index({ rating: -1 });
 reviewSchema.index({ status: 1 });
-reviewSchema.index({ createdAt: -1 });
+// Removed standalone createdAt index to avoid duplication with compound indexes
 reviewSchema.index({ helpfulCount: -1 });
 reviewSchema.index({ qualityScore: -1 });
 
@@ -443,7 +443,7 @@ reviewSchema.methods.approve = function(moderatorId, notes) {
 };
 
 // Remove review (soft delete)
-reviewSchema.methods.remove = function(moderatorId, reason) {
+reviewSchema.methods.removeReview = function(moderatorId, reason) {
   this.status = 'removed';
   this.moderatedBy = moderatorId;
   this.moderatedAt = new Date();

@@ -104,11 +104,11 @@ const userSchema = new mongoose.Schema({
 });
 
 // Indexes for Performance
-userSchema.index({ email: 1 }, { unique: true });
+// Email index removed - handled by unique: true in schema definition
 userSchema.index({ role: 1 });
 userSchema.index({ status: 1 });
 userSchema.index({ googleId: 1 });
-userSchema.index({ createdAt: -1 });
+// Removed standalone createdAt index to avoid duplication with timestamps: true
 
 // Pre-save Middleware
 userSchema.pre('save', async function (next) {

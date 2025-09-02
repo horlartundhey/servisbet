@@ -5,8 +5,8 @@ const businessSchema = new mongoose.Schema({
   name: { 
     type: String, 
     required: true,
-    trim: true,
-    index: true
+    trim: true
+    // Removed index: true to avoid duplication with separate index definition
   },
   slug: { 
     type: String, 
@@ -20,8 +20,8 @@ const businessSchema = new mongoose.Schema({
   },
   category: { 
     type: String, 
-    required: true,
-    index: true
+    required: true
+    // Removed index: true to avoid duplication with separate index definition
   },
   
   // Contact & Location
@@ -34,7 +34,7 @@ const businessSchema = new mongoose.Schema({
   website: { type: String },
   address: {
     street: { type: String },
-    city: { type: String, index: true },
+    city: { type: String }, // Removed index: true to avoid duplication
     state: { type: String },
     country: { type: String, default: 'Nigeria' },
     postalCode: { type: String },
@@ -66,8 +66,8 @@ const businessSchema = new mongoose.Schema({
   owner: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
-    required: true,
-    index: true
+    required: true
+    // Removed index: true to avoid duplication with separate index definition
   },
   isVerified: { 
     type: Boolean, 
@@ -85,8 +85,8 @@ const businessSchema = new mongoose.Schema({
     type: Number, 
     default: 0,
     min: 0,
-    max: 5,
-    index: -1
+    max: 5
+    // Removed index: -1 to avoid duplication with separate index definition
   },
   totalReviews: { 
     type: Number, 
@@ -96,8 +96,8 @@ const businessSchema = new mongoose.Schema({
     type: Number, 
     default: 50,
     min: 0,
-    max: 100,
-    index: -1
+    max: 100
+    // Removed index: -1 to avoid duplication with separate index definition
   },
   
   // Business Hours
@@ -143,14 +143,14 @@ const businessSchema = new mongoose.Schema({
   status: { 
     type: String, 
     enum: ['active', 'suspended', 'banned'], 
-    default: 'active',
-    index: true
+    default: 'active'
+    // Removed index: true to avoid duplication with separate index definition
   },
   
   // SEO & Discovery
   tags: [{ 
-    type: String,
-    index: true
+    type: String
+    // Removed index: true to avoid duplication with separate index definition
   }], // searchable keywords
   
   // Subscription reference
@@ -178,7 +178,7 @@ const businessSchema = new mongoose.Schema({
 // ✅ INDEXES for Performance
 // Basic indexes
 businessSchema.index({ name: 1 });
-businessSchema.index({ slug: 1 }, { unique: true });
+// Removed slug index - handled by unique: true in schema definition
 businessSchema.index({ category: 1 });
 businessSchema.index({ owner: 1 });
 businessSchema.index({ 'address.city': 1 });

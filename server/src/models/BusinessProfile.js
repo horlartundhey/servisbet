@@ -155,7 +155,7 @@ const businessProfileSchema = new mongoose.Schema({
 });
 
 // Indexes
-businessProfileSchema.index({ owner: 1 });
+// Removed owner index - handled by unique: true in schema definition
 businessProfileSchema.index({ businessName: 'text', businessDescription: 'text' });
 businessProfileSchema.index({ category: 1 });
 businessProfileSchema.index({ 'address.city': 1 });
