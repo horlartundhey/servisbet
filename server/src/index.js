@@ -3,32 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./middlewares/errorHandler');
 const connectDB = require('./config/db');
-const mongoose = require('mongoose');
 
 const app = express();
-
-// Global connection state for serverless
-let isConnected = false;
-
-const connectDatabase = async () => {
-  if (mongoose.connections[0].readyState) {
-    // Use existing database connection
-    console.log('Using existing database connection');
-    return;
-  }
-
-  try {
-    await connectDB();
-    isConnected = true;
-    console.log('New database connection established');
-  } catch (error) {
-    console.error('Database connection error:', error);
-    throw error;
-  }
-};
-
-// Connect to database
-connectDatabase();
 
 // CORS Configuration
 const corsOptions = {
@@ -50,7 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 // Database connection middleware for serverless
 app.use(async (req, res, next) => {
   try {
-    await connectDatabase();
+    await connectDB(); // This will handle caching and connection reuse
     next();
   } catch (error) {
     console.error('Database middleware error:', error);

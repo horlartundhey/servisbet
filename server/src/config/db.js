@@ -32,7 +32,7 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
       maxPoolSize: 1, // Limit to 1 connection for serverless
       maxIdleTimeMS: 10000, // Close connections after 10 seconds of inactivity
-      bufferCommands: false, // Disable mongoose buffering
+      bufferCommands: true, // Enable mongoose buffering for better compatibility
       connectTimeoutMS: 10000, // Give up initial connection after 10 seconds
       socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
     };
