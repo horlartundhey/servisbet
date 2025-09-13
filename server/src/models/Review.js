@@ -45,9 +45,47 @@ const reviewSchema = new mongoose.Schema({
   user: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
-    required: true
+    required: false // Made optional to support anonymous reviews
     // Removed index: true to avoid duplication with separate index definition
   },
+  
+  // Anonymous Review Fields
+  isAnonymous: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  anonymousReviewer: {
+    name: {
+      type: String,
+      required: function() { return this.isAnonymous; },
+      trim: true,
+      maxlength: 50
+    },
+    email: {
+      type: String,
+      required: function() { return this.isAnonymous; },
+      trim: true,
+      lowercase: true,
+      validate: {
+        validator: function(email) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        },
+        message: 'Please provide a valid email address'
+      }
+    },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    verificationToken: {
+      type: String
+    },
+    verificationTokenExpires: {
+      type: Date
+    }
+  },
+  
   business: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Business', 
@@ -159,8 +197,32 @@ const reviewSchema = new mongoose.Schema({
     enum: ['web', 'mobile', 'api'],
     default: 'web'
   },
-  ipAddress: String, // For spam detection
+  ipAddress: {
+    type: String,
+    index: true // For spam detection and rate limiting
+  },
   userAgent: String,
+  
+  // Spam Prevention
+  spamScore: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  isSpam: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  spamReasons: [String], // Array of detected spam indicators
+  
+  // Rate Limiting Fields
+  submissionAttempts: {
+    type: Number,
+    default: 1
+  },
+  lastSubmissionIP: String,
   
   // Legacy support - handled by virtual fields
   // text: { 
@@ -195,13 +257,23 @@ reviewSchema.index({ business: 1 });
 reviewSchema.index({ business: 1, createdAt: -1 });
 reviewSchema.index({ rating: -1 });
 reviewSchema.index({ status: 1 });
+reviewSchema.index({ isAnonymous: 1 });
+reviewSchema.index({ ipAddress: 1 });
+reviewSchema.index({ isSpam: 1 });
 // Removed standalone createdAt index to avoid duplication with compound indexes
 reviewSchema.index({ helpfulCount: -1 });
 reviewSchema.index({ qualityScore: -1 });
 
+// Anonymous review specific indexes
+reviewSchema.index({ 'anonymousReviewer.email': 1, business: 1 }); // Prevent duplicate reviews per email per business
+reviewSchema.index({ ipAddress: 1, createdAt: -1 }); // Rate limiting by IP
+reviewSchema.index({ isAnonymous: 1, 'anonymousReviewer.isVerified': 1 }); // Filter verified anonymous reviews
+
 // Compound indexes for common queries
 reviewSchema.index({ business: 1, status: 1, createdAt: -1 });
 reviewSchema.index({ user: 1, status: 1, createdAt: -1 });
+reviewSchema.index({ business: 1, isAnonymous: 1, status: 1, createdAt: -1 });
+reviewSchema.index({ business: 1, rating: -1, createdAt: -1 }); // For rating-based filtering
 
 // Text search index for review content
 reviewSchema.index({
@@ -263,10 +335,72 @@ reviewSchema.virtual('hasBusinessResponse').get(function() {
   return this.businessResponse && this.businessResponse.content;
 });
 
+// Get reviewer display info (anonymous or authenticated)
+reviewSchema.virtual('reviewerInfo').get(function() {
+  if (this.isAnonymous) {
+    return {
+      name: this.anonymousReviewer.name,
+      email: this.anonymousReviewer.email,
+      isVerified: this.anonymousReviewer.isVerified,
+      type: 'anonymous'
+    };
+  }
+  if (this.user) {
+    return {
+      name: `${this.user.firstName} ${this.user.lastName}`,
+      email: this.user.email,
+      avatar: this.user.avatar,
+      isVerified: true,
+      type: 'authenticated'
+    };
+  }
+  return {
+    name: 'Unknown User',
+    type: 'unknown'
+  };
+});
+
+// Check if review needs email verification
+reviewSchema.virtual('needsVerification').get(function() {
+  return this.isAnonymous && !this.anonymousReviewer.isVerified && this.status === 'pending';
+});
+
 // ✅ MIDDLEWARE
+// Validate anonymous vs authenticated review requirements
+reviewSchema.pre('validate', function(next) {
+  // For anonymous reviews, ensure all required anonymous fields are present
+  if (this.isAnonymous) {
+    if (!this.anonymousReviewer.name || !this.anonymousReviewer.email) {
+      return next(new Error('Anonymous reviews require name and email'));
+    }
+    // Anonymous reviews don't need user
+    this.user = undefined;
+  } else {
+    // For authenticated reviews, ensure user is present
+    if (!this.user) {
+      return next(new Error('Authenticated reviews require a user'));
+    }
+    // Clear anonymous fields for authenticated reviews
+    this.anonymousReviewer = undefined;
+  }
+  next();
+});
+
 // Update the updatedAt field before saving
 reviewSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  next();
+});
+
+// Generate verification token for anonymous reviews
+reviewSchema.pre('save', function(next) {
+  if (this.isAnonymous && this.isNew && !this.anonymousReviewer.verificationToken) {
+    const crypto = require('crypto');
+    this.anonymousReviewer.verificationToken = crypto.randomBytes(32).toString('hex');
+    this.anonymousReviewer.verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    this.anonymousReviewer.isVerified = false;
+    this.status = 'pending'; // Anonymous reviews start as pending until verified
+  }
   next();
 });
 
@@ -315,7 +449,8 @@ reviewSchema.statics.getBusinessReviews = function(businessId, options = {}) {
     sortOrder = 'desc',
     status = 'published',
     minRating,
-    maxRating
+    maxRating,
+    includeAnonymous = true
   } = options;
 
   const query = { 
@@ -325,6 +460,7 @@ reviewSchema.statics.getBusinessReviews = function(businessId, options = {}) {
 
   if (minRating) query.rating = { ...query.rating, $gte: minRating };
   if (maxRating) query.rating = { ...query.rating, $lte: maxRating };
+  if (!includeAnonymous) query.isAnonymous = false;
 
   const sort = {};
   sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
@@ -335,6 +471,47 @@ reviewSchema.statics.getBusinessReviews = function(businessId, options = {}) {
     .sort(sort)
     .limit(limit * 1)
     .skip((page - 1) * limit);
+};
+
+// Check for duplicate anonymous reviews
+reviewSchema.statics.checkDuplicateAnonymousReview = async function(email, businessId, ipAddress, timeWindow = 24) {
+  const timeLimit = new Date(Date.now() - timeWindow * 60 * 60 * 1000);
+  
+  const duplicates = await this.find({
+    $or: [
+      { 'anonymousReviewer.email': email, business: businessId },
+      { ipAddress: ipAddress, business: businessId, createdAt: { $gte: timeLimit } }
+    ],
+    isAnonymous: true
+  });
+  
+  return duplicates.length > 0;
+};
+
+// Get anonymous reviews pending verification
+reviewSchema.statics.getPendingVerificationReviews = function(options = {}) {
+  const { page = 1, limit = 20 } = options;
+  
+  return this.find({
+    isAnonymous: true,
+    'anonymousReviewer.isVerified': false,
+    status: 'pending',
+    'anonymousReviewer.verificationTokenExpires': { $gte: new Date() }
+  })
+    .populate('business', 'name slug')
+    .sort({ createdAt: -1 })
+    .limit(limit * 1)
+    .skip((page - 1) * limit);
+};
+
+// Get reviews by IP address for spam detection
+reviewSchema.statics.getReviewsByIP = function(ipAddress, timeWindow = 24) {
+  const timeLimit = new Date(Date.now() - timeWindow * 60 * 60 * 1000);
+  
+  return this.find({
+    ipAddress: ipAddress,
+    createdAt: { $gte: timeLimit }
+  }).sort({ createdAt: -1 });
 };
 
 // Get user's reviews
@@ -392,6 +569,86 @@ reviewSchema.statics.searchReviews = function(query, options = {}) {
 };
 
 // ✅ INSTANCE METHODS
+// Verify anonymous review email
+reviewSchema.methods.verifyAnonymousEmail = function(token) {
+  if (!this.isAnonymous) {
+    throw new Error('This method is only for anonymous reviews');
+  }
+  
+  if (this.anonymousReviewer.verificationToken !== token) {
+    throw new Error('Invalid verification token');
+  }
+  
+  if (new Date() > this.anonymousReviewer.verificationTokenExpires) {
+    throw new Error('Verification token has expired');
+  }
+  
+  this.anonymousReviewer.isVerified = true;
+  this.anonymousReviewer.verificationToken = undefined;
+  this.anonymousReviewer.verificationTokenExpires = undefined;
+  this.status = 'published';
+  
+  return this.save();
+};
+
+// Get reviewer display name (works for both anonymous and authenticated)
+reviewSchema.methods.getReviewerName = function() {
+  if (this.isAnonymous) {
+    return this.anonymousReviewer.name;
+  }
+  return this.user ? `${this.user.firstName} ${this.user.lastName}` : 'Unknown User';
+};
+
+// Get reviewer email (works for both anonymous and authenticated)
+reviewSchema.methods.getReviewerEmail = function() {
+  if (this.isAnonymous) {
+    return this.anonymousReviewer.email;
+  }
+  return this.user ? this.user.email : null;
+};
+
+// Check if review is verified (email for anonymous, user account for authenticated)
+reviewSchema.methods.isVerifiedReview = function() {
+  if (this.isAnonymous) {
+    return this.anonymousReviewer.isVerified;
+  }
+  return !!this.user; // Authenticated users are inherently verified
+};
+
+// Calculate spam score based on various factors
+reviewSchema.methods.calculateSpamScore = function() {
+  let score = 0;
+  
+  // Content analysis
+  if (this.content.length < 10) score += 20;
+  if (/^[A-Z\s!]+$/.test(this.content)) score += 15; // All caps
+  if (/(.)\1{4,}/.test(this.content)) score += 10; // Repeated characters
+  
+  // Suspicious patterns
+  if (/\b(amazing|best|worst|terrible|horrible)\b/gi.test(this.content)) {
+    const matches = this.content.match(/\b(amazing|best|worst|terrible|horrible)\b/gi);
+    if (matches && matches.length > 2) score += 15;
+  }
+  
+  // URLs in content
+  if (/https?:\/\//.test(this.content)) score += 25;
+  
+  // Email addresses in content
+  if (/@[\w.-]+\.[a-zA-Z]{2,}/.test(this.content)) score += 20;
+  
+  // Very short review with extreme rating
+  if (this.content.length < 20 && (this.rating === 1 || this.rating === 5)) {
+    score += 15;
+  }
+  
+  // Multiple submissions from same IP
+  if (this.submissionAttempts > 1) score += this.submissionAttempts * 10;
+  
+  this.spamScore = Math.min(100, score);
+  this.isSpam = this.spamScore >= 60;
+  
+  return this.spamScore;
+};
 // Mark review as helpful by a user
 reviewSchema.methods.markHelpful = function(userId) {
   if (!this.helpfulBy.includes(userId)) {
