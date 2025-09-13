@@ -52,9 +52,17 @@ const reviewSchema = new mongoose.Schema({
   // Anonymous Review Fields
   isAnonymous: {
     type: Boolean,
-    default: false,
-    index: true
+    default: false
   },
+  
+  // Top-level verification field (for both anonymous and authenticated reviews)
+  isVerified: {
+    type: Boolean,
+    default: function() {
+      return !this.isAnonymous; // Authenticated reviews are auto-verified, anonymous need verification
+    }
+  },
+  
   anonymousReviewer: {
     name: {
       type: String,
@@ -198,8 +206,7 @@ const reviewSchema = new mongoose.Schema({
     default: 'web'
   },
   ipAddress: {
-    type: String,
-    index: true // For spam detection and rate limiting
+    type: String
   },
   userAgent: String,
   
@@ -212,8 +219,7 @@ const reviewSchema = new mongoose.Schema({
   },
   isSpam: {
     type: Boolean,
-    default: false,
-    index: true
+    default: false
   },
   spamReasons: [String], // Array of detected spam indicators
   
@@ -583,9 +589,11 @@ reviewSchema.methods.verifyAnonymousEmail = function(token) {
     throw new Error('Verification token has expired');
   }
   
+  // Update both nested and main verification fields
   this.anonymousReviewer.isVerified = true;
   this.anonymousReviewer.verificationToken = undefined;
   this.anonymousReviewer.verificationTokenExpires = undefined;
+  this.isVerified = true; // This was missing!
   this.status = 'published';
   
   return this.save();

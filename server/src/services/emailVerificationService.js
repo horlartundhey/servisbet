@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 
 class EmailVerificationService {
   constructor() {
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
       port: process.env.EMAIL_PORT || 587,
       secure: false, // true for 465, false for other ports
@@ -204,6 +204,88 @@ class EmailVerificationService {
     } catch (error) {
       console.error('Failed to send confirmation email:', error);
       // Don't throw error here as it's not critical
+    }
+  }
+
+  /**
+   * Send low rating alert to business owner
+   */
+  async sendLowRatingAlert({ businessOwner, business, averageRating, totalReviews, newReview }) {
+    const subject = `🚨 Low Rating Alert - ${business.name} (${averageRating} ⭐)`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #ff6b6b, #ffa500); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 28px;">⚠️ Low Rating Alert</h1>
+          <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your business needs attention</p>
+        </div>
+        
+        <div style="padding: 30px; background: #f8f9fa; border: 1px solid #e9ecef;">
+          <h2 style="color: #dc3545; margin-top: 0;">Rating Update for ${business.name}</h2>
+          
+          <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #dc3545;">Current Rating Status</h3>
+            <p style="font-size: 18px; margin: 5px 0;"><strong>Average Rating:</strong> ${averageRating} ⭐</p>
+            <p style="margin: 5px 0;"><strong>Total Reviews:</strong> ${totalReviews}</p>
+          </div>
+
+          <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #495057;">Latest Review</h3>
+            <div style="border-left: 3px solid #ffc107; padding-left: 15px;">
+              <p style="margin: 5px 0;"><strong>Rating:</strong> ${'⭐'.repeat(newReview.rating)} (${newReview.rating}/5)</p>
+              <p style="margin: 5px 0;"><strong>Reviewer:</strong> ${newReview.reviewerName}</p>
+              <p style="margin: 5px 0;"><strong>Review:</strong> "${newReview.content.substring(0, 150)}${newReview.content.length > 150 ? '...' : ''}"</p>
+              <p style="margin: 5px 0; font-size: 14px; color: #6c757d;"><strong>Date:</strong> ${new Date(newReview.createdAt).toLocaleDateString()}</p>
+            </div>
+          </div>
+
+          <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff; margin: 20px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #007bff;">Recommended Actions</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+              <li>Respond to the review professionally and promptly</li>
+              <li>Address the customer's concerns directly</li>
+              <li>Review your service quality and processes</li>
+              <li>Consider reaching out to the customer privately</li>
+              <li>Encourage satisfied customers to leave reviews</li>
+            </ul>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0 10px 0;">
+            <a href="${process.env.CLIENT_URL}/business/dashboard" 
+               style="background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+              View Dashboard
+            </a>
+          </div>
+        </div>
+        
+        <div style="padding: 20px; text-align: center; color: #6c757d; font-size: 14px; background: #f8f9fa; border-radius: 0 0 10px 10px;">
+          <p style="margin: 0;">This alert is sent when your business rating drops below 4.0 stars</p>
+          <p style="margin: 5px 0 0 0;">© ${new Date().getFullYear()} ServisbetA - Business Review Platform</p>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: businessOwner.email,
+      subject,
+      html,
+      // Add high priority for alerts
+      headers: {
+        'X-Priority': '1',
+        'X-MSMail-Priority': 'High',
+        'Importance': 'high'
+      }
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log(`🚨 Low rating alert sent to: ${businessOwner.email} for ${business.name}`);
+      console.log('Message ID:', info.messageId);
+      return info;
+    } catch (error) {
+      console.error('Failed to send low rating alert:', error);
+      throw error;
     }
   }
 

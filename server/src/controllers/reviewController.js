@@ -1,5 +1,6 @@
 const Review = require('../models/Review');
 const Business = require('../models/Business');
+const User = require('../models/User');
 const emailVerificationService = require('../services/emailVerificationService');
 const asyncHandler = require('../middlewares/asyncHandler');
 
@@ -11,6 +12,62 @@ const getClientIP = (req) => {
          req.socket.remoteAddress ||
          (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
          req.ip;
+};
+
+// Helper function to check and send low rating alert
+const checkAndSendLowRatingAlert = async (review, business) => {
+  try {
+    // Calculate business average rating
+    const reviewStats = await Review.aggregate([
+      { 
+        $match: { 
+          business: business._id, 
+          isVerified: true,
+          $or: [{ isAnonymous: { $ne: true } }, { isAnonymous: true }] // Include all verified reviews
+        } 
+      },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 }
+        }
+      }
+    ]);
+
+    if (reviewStats.length > 0) {
+      const averageRating = reviewStats[0].averageRating;
+      const totalReviews = reviewStats[0].totalReviews;
+
+      console.log(`Business ${business.name} rating: ${averageRating.toFixed(2)} (${totalReviews} reviews)`);
+
+      // Send alert if average rating is below 4.0 and this is a low rating (3 or below)
+      if (averageRating < 4.0 && review.rating <= 3) {
+        // Get business owner details
+        const businessOwner = await User.findById(business.owner);
+        
+        if (businessOwner) {
+          console.log(`🚨 Low rating alert for ${business.name} - Current rating: ${averageRating.toFixed(2)}`);
+          
+          await emailVerificationService.sendLowRatingAlert({
+            businessOwner,
+            business,
+            averageRating: averageRating.toFixed(2),
+            totalReviews,
+            newReview: {
+              rating: review.rating,
+              content: review.content,
+              reviewerName: review.anonymousReviewer?.name || 'Anonymous',
+              createdAt: review.createdAt
+            }
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error in checkAndSendLowRatingAlert:', error);
+    throw error;
+  }
 };
 
 // @desc    Get all reviews for a business
@@ -148,7 +205,8 @@ const createReview = asyncHandler(async (req, res) => {
 // @access  Public
 const createAnonymousReview = asyncHandler(async (req, res) => {
   const { 
-    business, 
+    business,
+    businessId, 
     rating, 
     title, 
     content, 
@@ -158,11 +216,14 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
     reviewerEmail 
   } = req.body;
 
+  // Use businessId if provided, otherwise use business
+  const targetBusiness = businessId || business;
+
   // Validation
-  if (!business || !rating || !content || !reviewerName || !reviewerEmail) {
+  if (!targetBusiness || !rating || !content || !reviewerName || !reviewerEmail) {
     return res.status(400).json({
       success: false,
-      message: 'Business, rating, content, reviewer name, and email are required'
+      message: 'Business ID, rating, content, reviewer name, and email are required'
     });
   }
 
@@ -176,7 +237,7 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
   }
 
   // Check if business exists
-  const businessExists = await Business.findById(business);
+  const businessExists = await Business.findById(targetBusiness);
   if (!businessExists) {
     return res.status(404).json({
       success: false,
@@ -189,7 +250,7 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
   // Check for duplicate reviews (same email for same business, or same IP within 24 hours)
   const isDuplicate = await Review.checkDuplicateAnonymousReview(
     reviewerEmail, 
-    business, 
+    targetBusiness, 
     clientIP
   );
 
@@ -211,7 +272,7 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
 
   // Create the anonymous review
   const review = await Review.create({
-    business,
+    business: targetBusiness,
     rating,
     title,
     content,
@@ -322,6 +383,15 @@ const verifyAnonymousReview = asyncHandler(async (req, res) => {
         await emailVerificationService.sendReviewPublishedConfirmation(review, business);
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
+      }
+    }
+
+    // Check business rating and send low rating alert if needed
+    if (business) {
+      try {
+        await checkAndSendLowRatingAlert(review, business);
+      } catch (alertError) {
+        console.error('Failed to send low rating alert:', alertError);
       }
     }
 
