@@ -22,24 +22,24 @@ const reviewSchema = new mongoose.Schema({
   },
   
   // Media
-  images: [{ 
-    type: String,
+  images: {
+    type: [String], // Array of Cloudinary URLs
     validate: {
       validator: function(v) {
-        return v.length <= 5; // Max 5 images
+        return v.length <= 5; // Max 5 images per review
       },
       message: 'Maximum 5 images allowed per review'
     }
-  }], // Cloudinary URLs
-  videos: [{ 
-    type: String,
+  },
+  videos: {
+    type: [String], // Array of Cloudinary URLs
     validate: {
       validator: function(v) {
-        return v.length <= 2; // Max 2 videos
+        return v.length <= 2; // Max 2 videos per review
       },
       message: 'Maximum 2 videos allowed per review'
     }
-  }], // Cloudinary URLs
+  },
   
   // Relationships
   user: { 
@@ -96,7 +96,7 @@ const reviewSchema = new mongoose.Schema({
   
   business: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Business', 
+    ref: 'BusinessProfile', 
     required: true
     // Removed index: true to avoid duplication with separate index definition
   },
@@ -209,6 +209,7 @@ const reviewSchema = new mongoose.Schema({
     type: String
   },
   userAgent: String,
+  deviceFingerprint: String, // For duplicate detection
   
   // Spam Prevention
   spamScore: {
@@ -398,12 +399,17 @@ reviewSchema.pre('save', function(next) {
   next();
 });
 
-// Generate verification token for anonymous reviews
+// Generate verification tokens for anonymous reviews
 reviewSchema.pre('save', function(next) {
-  if (this.isAnonymous && this.isNew && !this.anonymousReviewer.verificationToken) {
+  if (this.isAnonymous && this.isNew) {
     const crypto = require('crypto');
-    this.anonymousReviewer.verificationToken = crypto.randomBytes(32).toString('hex');
-    this.anonymousReviewer.verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    
+    // Generate email verification token
+    if (!this.anonymousReviewer.verificationToken) {
+      this.anonymousReviewer.verificationToken = crypto.randomBytes(32).toString('hex');
+      this.anonymousReviewer.verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    }
+    
     this.anonymousReviewer.isVerified = false;
     this.status = 'pending'; // Anonymous reviews start as pending until verified
   }
@@ -427,20 +433,22 @@ reviewSchema.pre('save', function(next) {
 
 // Update business rating after review changes
 reviewSchema.post('save', async function(doc) {
-  const Business = mongoose.model('Business');
-  const business = await Business.findById(doc.business);
-  if (business && typeof business.updateRatingStats === 'function') {
-    await business.updateRatingStats();
+  try {
+    const BusinessProfile = mongoose.model('BusinessProfile');
+    await BusinessProfile.updateReviewStats(doc.business);
+  } catch (error) {
+    console.error('Error updating business review stats:', error);
   }
 });
 
 // Update business rating after review deletion
 reviewSchema.post('findOneAndDelete', async function(doc) {
   if (doc) {
-    const Business = mongoose.model('Business');
-    const business = await Business.findById(doc.business);
-    if (business && typeof business.updateRatingStats === 'function') {
-      await business.updateRatingStats();
+    try {
+      const BusinessProfile = mongoose.model('BusinessProfile');
+      await BusinessProfile.updateReviewStats(doc.business);
+    } catch (error) {
+      console.error('Error updating business review stats after deletion:', error);
     }
   }
 });
@@ -480,13 +488,14 @@ reviewSchema.statics.getBusinessReviews = function(businessId, options = {}) {
 };
 
 // Check for duplicate anonymous reviews
-reviewSchema.statics.checkDuplicateAnonymousReview = async function(email, businessId, ipAddress, timeWindow = 24) {
+reviewSchema.statics.checkDuplicateAnonymousReview = async function(email, businessId, ipAddress, deviceFingerprint, timeWindow = 24) {
   const timeLimit = new Date(Date.now() - timeWindow * 60 * 60 * 1000);
   
   const duplicates = await this.find({
     $or: [
       { 'anonymousReviewer.email': email, business: businessId },
-      { ipAddress: ipAddress, business: businessId, createdAt: { $gte: timeLimit } }
+      { ipAddress: ipAddress, business: businessId, createdAt: { $gte: timeLimit } },
+      { deviceFingerprint: deviceFingerprint, business: businessId, deviceFingerprint: { $ne: null }, createdAt: { $gte: timeLimit } }
     ],
     isAnonymous: true
   });
@@ -589,11 +598,11 @@ reviewSchema.methods.verifyAnonymousEmail = function(token) {
     throw new Error('Verification token has expired');
   }
   
-  // Update both nested and main verification fields
+  // Update verification status
   this.anonymousReviewer.isVerified = true;
   this.anonymousReviewer.verificationToken = undefined;
   this.anonymousReviewer.verificationTokenExpires = undefined;
-  this.isVerified = true; // This was missing!
+  this.isVerified = true;
   this.status = 'published';
   
   return this.save();

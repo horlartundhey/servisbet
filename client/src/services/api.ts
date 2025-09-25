@@ -6,6 +6,10 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://lo
 // Only log in development
 if (import.meta.env.DEV) {
   console.log('API Base URL:', API_BASE_URL);
+  console.log('Environment variables:', {
+    VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+    MODE: import.meta.env.MODE,
+  });
 }
 
 // Create axios instance

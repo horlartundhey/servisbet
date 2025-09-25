@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
+// @ts-ignore
+import servlogo from '../assets/images/servisbeta-logo.png';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +15,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Mail, CheckCircle2 } from 'lucide-react';
 import { authService } from '@/services/authService';
+
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -65,7 +69,9 @@ const Auth = () => {
 
   // Check if user is already authenticated on component mount
   useEffect(() => {
+    console.log('Auth useEffect triggered:', { isAuthenticated, user }); // Debug log
     if (isAuthenticated && user) {
+      console.log('User is authenticated, redirecting...'); // Debug log
       redirectToDashboard(user.role);
     }
     
@@ -98,22 +104,27 @@ const Auth = () => {
   }, [registerData.email]);
 
   const handleLogin = async (e: React.FormEvent) => {
+    console.log('handleLogin called!', { loginData }); // Debug log
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    
+    console.log('About to call login function...'); // Debug log
 
     try {
+      console.log('Calling AuthContext login...'); // Debug log
       const response = await login(loginData.email, loginData.password);
       console.log('Login response:', response); // Debug log
+      console.log('User from response:', response.user); // Debug log
       setSuccess('Login successful! Redirecting...');
       
-      // Get user role from response and redirect accordingly
-      setTimeout(() => {
-        const roleToUse = response?.user?.role || user?.role || 'user';
-        console.log('Using role for redirect:', roleToUse); // Debug log
-        redirectToDashboard(roleToUse);
-      }, 1000);
+      // Immediately redirect after successful login using the response data
+      if (response.user && response.user.role) {
+        console.log('Redirecting immediately with role:', response.user.role);
+        redirectToDashboard(response.user.role);
+      }
     } catch (err: any) {
+      console.error('Login error caught:', err); // Debug log
       const errorData = err.response?.data;
       
       // Handle email verification requirement
@@ -190,8 +201,8 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">ServisbetA</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <h1 className="text-3xl font-bold text-primary mb-2 "><img className="w-40 text-center" src={servlogo} alt="ServisBeta Logo" /></h1>
           <p className="text-muted-foreground">Join our trusted business review community</p>
         </div>
 

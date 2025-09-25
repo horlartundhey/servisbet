@@ -1,12 +1,31 @@
 const mongoose = require('mongoose');
 
 const businessProfileSchema = new mongoose.Schema({
-  // Link to User
+  // Link to User (now supports multiple businesses per user)
   owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    required: true
+  },
+
+  // Business Identification
+  businessSlug: {
+    type: String,
     required: true,
-    unique: true // Each user can only have one business profile
+    unique: true, // Each business must have a unique slug
+    lowercase: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 50,
+    match: /^[a-z0-9-]+$/ // Only lowercase letters, numbers, and hyphens
+  },
+  isActive: {
+    type: Boolean,
+    default: true // For soft deletion
+  },
+  isPrimary: {
+    type: Boolean,
+    default: false // One primary business per user for quick access
   },
 
   // Step 2: Business Details
@@ -81,11 +100,38 @@ const businessProfileSchema = new mongoose.Schema({
     sunday: { open: String, close: String, closed: { type: Boolean, default: false } }
   },
 
-  // Business Images
+  // Business Images (Required for profile completion)
   images: {
-    logo: { type: String }, // Cloudinary URL
-    cover: { type: String }, // Cloudinary URL
-    gallery: [{ type: String }] // Array of Cloudinary URLs
+    logo: { 
+      type: String, 
+      required: [true, 'Business logo is required'], // Cloudinary URL
+      validate: {
+        validator: function(v) {
+          return v && v.length > 0;
+        },
+        message: 'Business logo is required for profile completion'
+      }
+    },
+    cover: { 
+      type: String, 
+      required: [true, 'Business cover image is required'], // Cloudinary URL
+      validate: {
+        validator: function(v) {
+          return v && v.length > 0;
+        },
+        message: 'Business cover image is required for profile completion'
+      }
+    },
+    gallery: {
+      type: [{ type: String }], // Array of Cloudinary URLs
+      validate: {
+        validator: function(v) {
+          return v && v.length >= 2; // Require at least 2 gallery images
+        },
+        message: 'At least 2 gallery images are required for profile completion'
+      },
+      default: []
+    }
   },
 
   // Social Media
@@ -98,29 +144,20 @@ const businessProfileSchema = new mongoose.Schema({
   },
 
   // Step 3: Verification Documents
-  verificationDocuments: {
-    businessLicense: {
-      url: String, // Cloudinary URL
-      uploadedAt: Date,
-      status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
-    },
-    taxId: {
-      url: String,
-      uploadedAt: Date,
-      status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
-    },
-    insuranceCertificate: {
-      url: String,
-      uploadedAt: Date,
-      status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
-    },
-    additionalDocs: [{
-      name: String,
-      url: String,
-      uploadedAt: Date,
-      status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
-    }]
-  },
+
+  // Flexible array for uploaded verification docs (step 2)
+  verificationDocs: [{
+    url: { type: String, required: true },
+    publicId: { type: String, required: true },
+    type: { type: String, required: true }, // e.g., 'registration', 'owner_id', 'other'
+    fileName: { type: String, required: true },
+    size: { type: Number, required: true },
+    uploadedAt: { type: Date, default: Date.now },
+    validationHash: { type: String },
+    validated: { type: Boolean, default: false }
+  }],
+
+  // Optionally keep the old structure for legacy support
 
   // Verification Status
   profileCompletionStep: {
@@ -155,16 +192,18 @@ const businessProfileSchema = new mongoose.Schema({
 });
 
 // Indexes
-// Removed owner index - handled by unique: true in schema definition
+businessProfileSchema.index({ owner: 1 });
+businessProfileSchema.index({ owner: 1, isPrimary: 1 }); // For finding primary business
 businessProfileSchema.index({ businessName: 'text', businessDescription: 'text' });
 businessProfileSchema.index({ category: 1 });
 businessProfileSchema.index({ 'address.city': 1 });
 businessProfileSchema.index({ verificationStatus: 1 });
+businessProfileSchema.index({ isActive: 1 });
 
 // Virtual for completion percentage
 businessProfileSchema.virtual('completionPercentage').get(function() {
   let completed = 0;
-  const total = 12; // Total required fields
+  const total = 15; // Updated total required fields including mandatory images
 
   // Step 1: Basic info (from User model - always completed if profile exists)
   completed += 1;
@@ -178,13 +217,21 @@ businessProfileSchema.virtual('completionPercentage').get(function() {
   if (this.address && this.address.street) completed += 1;
   if (this.businessHours) completed += 1;
 
-  // Step 3: Images
+  // Step 3: Images (Now mandatory)
   if (this.images && this.images.logo) completed += 1;
   if (this.images && this.images.cover) completed += 1;
+  if (this.images && this.images.gallery && this.images.gallery.length >= 2) completed += 1;
 
   // Step 4: Verification documents
-  if (this.verificationDocuments && this.verificationDocuments.businessLicense && this.verificationDocuments.businessLicense.url) completed += 1;
-  if (this.verificationDocuments && this.verificationDocuments.taxId && this.verificationDocuments.taxId.url) completed += 1;
+  if (this.verificationDocs && this.verificationDocs.length > 0) {
+    // Check for at least one valid verification document
+    const hasValidDoc = this.verificationDocs.some(doc => doc.url && doc.validated);
+    if (hasValidDoc) completed += 1;
+  }
+
+  // Step 5: Profile completion requirements
+  if (this.isProfileComplete) completed += 1;
+  if (this.verificationStatus === 'approved') completed += 2; // Extra weight for approval
 
   return Math.round((completed / total) * 100);
 });
@@ -194,13 +241,15 @@ businessProfileSchema.methods.isStepComplete = function(step) {
   switch (step) {
     case 1: // Basic info - always complete if profile exists
       return true;
-    case 2: // Business details
+    case 2: // Business details (including mandatory images)
       return !!(this.businessName && this.businessDescription && this.category && 
-               this.businessEmail && this.businessPhone && this.address && this.address.street);
-    case 3: // Documents
-      return !!(this.verificationDocuments && this.verificationDocuments.businessLicense && 
-               this.verificationDocuments.businessLicense.url);
-    case 4: // Verification
+               this.businessEmail && this.businessPhone && this.address && this.address.street &&
+               this.images && this.images.logo && this.images.cover && 
+               this.images.gallery && this.images.gallery.length >= 2);
+    case 3: // Verification documents
+      return !!(this.verificationDocs && this.verificationDocs.length > 0 &&
+               this.verificationDocs.some(doc => doc.url && doc.validated));
+    case 4: // Admin verification approval
       return this.verificationStatus === 'approved';
     default:
       return false;
@@ -217,20 +266,138 @@ businessProfileSchema.methods.getNextStep = function() {
   return 4; // All steps complete
 };
 
-// Pre-save middleware to update completion status
-businessProfileSchema.pre('save', function(next) {
+// Static method to get user's businesses
+businessProfileSchema.statics.getUserBusinesses = function(userId, activeOnly = true) {
+  const query = { owner: userId };
+  if (activeOnly) {
+    query.isActive = true;
+  }
+  return this.find(query).sort({ isPrimary: -1, createdAt: -1 });
+};
+
+// Static method to get user's primary business
+businessProfileSchema.statics.getUserPrimaryBusiness = function(userId) {
+  return this.findOne({ owner: userId, isPrimary: true, isActive: true });
+};
+
+// Static method to find business by slug
+businessProfileSchema.statics.findBySlug = function(slug) {
+  return this.findOne({ businessSlug: slug, isActive: true });
+};
+
+// Method to deactivate business (soft delete)
+businessProfileSchema.methods.deactivate = function() {
+  this.isActive = false;
+  return this.save();
+};
+
+// Method to set as primary business
+businessProfileSchema.methods.setPrimary = async function() {
+  // Unset other primary businesses for this user
+  await this.constructor.updateMany(
+    { owner: this.owner, _id: { $ne: this._id } },
+    { $set: { isPrimary: false } }
+  );
+  
+  this.isPrimary = true;
+  return this.save();
+};
+
+// Pre-save middleware to update completion status and handle primary business logic
+businessProfileSchema.pre('save', async function(next) {
+  // If this business is being set as primary, unset other primary businesses for this user
+  if (this.isPrimary && this.isModified('isPrimary')) {
+    await this.constructor.updateMany(
+      { owner: this.owner, _id: { $ne: this._id } },
+      { $set: { isPrimary: false } }
+    );
+  }
+  
+  // If this is the user's first business, make it primary
+  if (this.isNew) {
+    const businessCount = await this.constructor.countDocuments({ 
+      owner: this.owner, 
+      isActive: true 
+    });
+    if (businessCount === 0) {
+      this.isPrimary = true;
+    }
+  }
+  
+  // Generate slug if not provided
+  if (!this.businessSlug && this.businessName) {
+    let baseSlug = this.businessName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+    
+    // Ensure unique slug
+    let slug = baseSlug;
+    let counter = 1;
+    while (await this.constructor.findOne({ businessSlug: slug, _id: { $ne: this._id } })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    this.businessSlug = slug;
+  }
+  
   // Update completion step
   this.profileCompletionStep = this.getNextStep();
   
-  // Check if profile is complete
+  // Check if profile is complete (business details + images + documents)
   this.isProfileComplete = this.isStepComplete(2) && this.isStepComplete(3);
   
-  // Update verification status
-  if (this.isProfileComplete && this.verificationStatus === 'incomplete') {
-    this.verificationStatus = 'pending';
+  // Update verification status based on completion
+  if (this.isProfileComplete) {
+    if (this.verificationStatus === 'incomplete') {
+      this.verificationStatus = 'pending'; // Ready for admin review
+    }
+  } else {
+    // If profile becomes incomplete, reset status
+    if (this.verificationStatus === 'pending') {
+      this.verificationStatus = 'incomplete';
+    }
   }
   
   next();
 });
+
+// Static method to update review statistics
+businessProfileSchema.statics.updateReviewStats = async function(businessId) {
+  try {
+    const Review = mongoose.model('Review');
+    
+    // Get all published reviews for this business
+    const reviews = await Review.find({ 
+      business: businessId, 
+      status: 'published' 
+    });
+    
+    const totalReviews = reviews.length;
+    let averageRating = 0;
+    
+    if (totalReviews > 0) {
+      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+      averageRating = Math.round((totalRating / totalReviews) * 10) / 10; // Round to 1 decimal
+    }
+    
+    // Update the business with the new stats
+    await this.findByIdAndUpdate(businessId, {
+      'stats.totalReviews': totalReviews,
+      'stats.averageRating': averageRating
+    });
+    
+    console.log(`Updated review stats for business ${businessId}: ${totalReviews} reviews, ${averageRating} avg rating`);
+  } catch (error) {
+    console.error('Error updating review stats:', error);
+  }
+};
+
+// Clear the model from mongoose cache if it exists (for development)
+if (mongoose.models.BusinessProfile) {
+  delete mongoose.models.BusinessProfile;
+}
 
 module.exports = mongoose.model('BusinessProfile', businessProfileSchema);

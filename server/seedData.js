@@ -118,6 +118,7 @@ const businessesData = [
     },
     priceRange: '$$$',
     status: 'active',
+    verificationStatus: 'approved',
     isVerified: true,
     tags: ['Italian', 'Pizza', 'Pasta', 'Wine', 'Family-friendly']
   },
@@ -152,6 +153,7 @@ const businessesData = [
     },
     priceRange: '$$',
     status: 'active',
+    verificationStatus: 'approved',
     isVerified: true,
     tags: ['Computer Repair', 'Mobile Repair', 'Data Recovery', 'Hardware']
   },
@@ -185,6 +187,7 @@ const businessesData = [
     },
     priceRange: '$$',
     status: 'active',
+    verificationStatus: 'approved',
     isVerified: false,
     tags: ['Hair Salon', 'Manicure', 'Pedicure', 'Facial', 'Beauty']
   },
@@ -218,6 +221,7 @@ const businessesData = [
     },
     priceRange: '$',
     status: 'active',
+    verificationStatus: 'approved',
     isVerified: true,
     tags: ['Coffee', 'Pastries', 'WiFi', 'Study Space', 'Breakfast']
   }

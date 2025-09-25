@@ -1,3 +1,5 @@
+// ...existing code...
+// ...existing code...
 import api from './api';
 
 export interface Business {
@@ -23,11 +25,18 @@ export interface Business {
     [key: string]: { open: string; close: string; closed?: boolean };
   };
   images: string[];
+  logo?: string; // Business logo URL
+  cover?: string; // Business cover image URL
   owner: string;
   averageRating: number;
   totalReviews: number;
-  isVerified: boolean;
+  isVerified?: boolean;
   isActive: boolean;
+  verificationStatus?: 'incomplete' | 'pending' | 'approved' | 'rejected';
+  verificationNotes?: string;
+  verifiedAt?: string;
+  businessHours?: any;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -90,39 +99,64 @@ export const businessService = {
     page: number;
     totalPages: number;
   }> {
-    const response = await api.get('/businesses', { params });
-    return response.data;
+    const response = await api.get('/business', { params });
+    // Transform API response to match expected format
+    return {
+      businesses: response.data.businesses || [],
+      total: response.data.total || 0,
+      page: parseInt(response.data.pagination?.currentPage) || 1,
+      totalPages: response.data.pagination?.totalPages || 1
+    };
   },
 
   // Get single business by ID
   async getBusinessById(id: string): Promise<Business> {
-    const response = await api.get(`/businesses/${id}`);
-    return response.data.business;
+    console.log('🔍 businessService.getBusinessById called with ID:', id);
+    console.log('🌐 Making API call to:', `/business/${id}`);
+    
+    try {
+      const response = await api.get(`/business/${id}`);
+      console.log('✅ businessService: Raw API response:', response);
+      console.log('📦 businessService: Response data:', response.data);
+      console.log('🏢 businessService: Business data:', response.data.data);
+      
+      return response.data.data;
+    } catch (error: any) {
+      console.error('❌ businessService.getBusinessById error:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      throw error;
+    }
   },
 
   // Create new business (requires business account)
   async createBusiness(businessData: CreateBusinessData): Promise<Business> {
-    const response = await api.post('/businesses', businessData);
+    const response = await api.post('/business', businessData);
     return response.data.business;
   },
 
   // Update business (requires business ownership)
   async updateBusiness(id: string, updates: Partial<CreateBusinessData>): Promise<Business> {
-    const response = await api.put(`/businesses/${id}`, updates);
+    const response = await api.put(`/business/${id}`, updates);
     return response.data.business;
   },
 
   // Delete business (requires business ownership)
   async deleteBusiness(id: string): Promise<{ success: boolean; message: string }> {
-    const response = await api.delete(`/businesses/${id}`);
+    const response = await api.delete(`/business/${id}`);
     return response.data;
   },
 
   // Get business dashboard stats (requires business ownership)
   async getBusinessStats(id: string): Promise<BusinessStats> {
-    const response = await api.get(`/businesses/${id}/stats`);
+    const response = await api.get(`/business/${id}/stats`);
     return response.data;
   },
+
 
   // Upload business images
   async uploadBusinessImages(id: string, images: File[]): Promise<{ images: string[] }> {
@@ -131,7 +165,7 @@ export const businessService = {
       formData.append(`images`, image);
     });
 
-    const response = await api.post(`/businesses/${id}/images`, formData, {
+    const response = await api.post(`/business/${id}/images`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -139,15 +173,27 @@ export const businessService = {
     return response.data;
   },
 
+  // Upload business verification documents (step 2)
+  async uploadVerificationDocuments(businessId: string, registrationDoc: File, ownerId: File, notes?: string): Promise<any> {
+    const formData = new FormData();
+    formData.append('registrationDoc', registrationDoc);
+    formData.append('ownerId', ownerId);
+    if (notes) formData.append('notes', notes);
+    const response = await api.post(`/business/${businessId}/upload-documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
   // Get business categories
   async getCategories(): Promise<string[]> {
-    const response = await api.get('/businesses/categories');
+    const response = await api.get('/business/categories');
     return response.data.categories;
   },
 
   // Search businesses by location
   async searchNearby(latitude: number, longitude: number, radius: number = 10): Promise<Business[]> {
-    const response = await api.get('/businesses/nearby', {
+    const response = await api.get('/business/nearby', {
       params: { latitude, longitude, radius },
     });
     return response.data.businesses;
@@ -167,7 +213,7 @@ export const businessService = {
       });
     }
 
-    const response = await api.post(`/businesses/${id}/claim`, formData, {
+    const response = await api.post(`/business/${id}/claim`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -176,15 +222,58 @@ export const businessService = {
   },
 
   // Get user's businesses (for business owners)
-  async getMyBusinesses(): Promise<Business[]> {
-    const response = await api.get('/businesses/my-businesses');
-    return response.data.businesses;
+  async getMyBusinesses(): Promise<{ success: boolean; count: number; data: Business[] }> {
+    const response = await api.get('/business/my/businesses');
+    return response.data;
+  },
+
+  // Get user's primary business
+  async getMyPrimaryBusiness(): Promise<{ success: boolean; data: Business }> {
+    const response = await api.get('/business/my/primary');
+    return response.data;
+  },
+
+  // Create additional business for multi-business accounts
+  async createAdditionalBusiness(businessData: CreateBusinessData): Promise<Business> {
+    const response = await api.post('/business/create-additional', businessData);
+    return response.data.business;
+  },
+
+  // Set business as primary
+  async setPrimaryBusiness(businessId: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.put(`/business/${businessId}/set-primary`);
+    return response.data;
+  },
+
+
+  // Get business by slug
+  async getBusinessBySlug(slug: string): Promise<Business> {
+    const response = await api.get(`/business/slug/${slug}`);
+    return response.data.business;
   },
 
   // Update business hours
   async updateBusinessHours(id: string, hours: Business['hours']): Promise<Business> {
-    const response = await api.put(`/businesses/${id}/hours`, { hours });
+    const response = await api.put(`/business/${id}/hours`, { hours });
     return response.data.business;
+  },
+
+  // Admin: Get all pending business verifications
+  async getPendingVerifications(): Promise<any[]> {
+    const response = await api.get('/business-verification/pending');
+    return response.data.data;
+  },
+
+  // Admin: Approve business verification
+  async approveVerification(businessId: string, feedback?: string): Promise<any> {
+    const response = await api.post(`/business-verification/${businessId}/approve`, { feedback });
+    return response.data;
+  },
+
+  // Admin: Reject business verification
+  async rejectVerification(businessId: string, feedback?: string): Promise<any> {
+    const response = await api.post(`/business-verification/${businessId}/reject`, { feedback });
+    return response.data;
   }
 };
 

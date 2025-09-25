@@ -27,14 +27,18 @@ const connectDB = async () => {
       return mongoose.connection;
     }
     
-    // Optimized connection options for Vercel serverless functions
+    // Optimized connection options for better compatibility
     const connectionOptions = {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      maxPoolSize: 1, // Limit to 1 connection for serverless
-      maxIdleTimeMS: 10000, // Close connections after 10 seconds of inactivity
-      bufferCommands: true, // Enable mongoose buffering for better compatibility
-      connectTimeoutMS: 10000, // Give up initial connection after 10 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+      serverSelectionTimeoutMS: 10000, // Increased timeout
+      maxPoolSize: 5, // Increased pool size for development
+      maxIdleTimeMS: 30000, // Increased idle timeout
+      bufferCommands: true,
+      connectTimeoutMS: 30000, // Increased connection timeout
+      socketTimeoutMS: 45000,
+      family: 4, // Force IPv4
+      retryWrites: true,
+      w: 'majority',
+      authSource: 'admin', // Explicitly set auth source
     };
     
     console.log('Connecting to MongoDB...');

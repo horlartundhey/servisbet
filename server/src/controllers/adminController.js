@@ -1,8 +1,9 @@
 const User = require('../models/User');
-const Business = require('../models/Business');
+const BusinessProfile = require('../models/BusinessProfile');
 const Review = require('../models/Review');
 const Flag = require('../models/Flag');
 const Subscription = require('../models/Subscription');
+const ReviewDispute = require('../models/ReviewDispute');
 const asyncHandler = require('../middlewares/asyncHandler');
 
 // @desc    Get admin dashboard stats
@@ -13,20 +14,30 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     totalUsers,
     totalBusinesses,
     totalReviews,
-    totalFlags,
-    activeSubscriptions,
+    pendingVerifications,
+    activeDisputes,
+    pendingDisputes,
+    flaggedContent,
     recentUsers,
     recentBusinesses,
     flaggedReviews
   ] = await Promise.all([
     User.countDocuments(),
-    Business.countDocuments(),
+    BusinessProfile.countDocuments(),
     Review.countDocuments(),
+    BusinessProfile.countDocuments({ verificationStatus: 'pending' }),
+    ReviewDispute.countDocuments({ status: { $in: ['under_review', 'requires_info'] } }),
+    ReviewDispute.countDocuments({ status: 'pending' }),
     Flag.countDocuments({ status: 'pending' }),
-    Subscription.countDocuments({ paymentStatus: 'completed' }),
-    User.find().sort('-createdAt').limit(5).select('name email role createdAt'),
-    Business.find().sort('-createdAt').limit(5).select('name category owner createdAt').populate('owner', 'name'),
-    Review.find({ status: 'flagged' }).limit(5).populate('user business', 'name')
+    User.find().sort('-createdAt').limit(5).select('firstName lastName email role createdAt'),
+    BusinessProfile.find().sort('-createdAt').limit(5).select('businessName businessCategory owner createdAt verificationStatus').populate('owner', 'firstName lastName email'),
+    Review.find({ 
+      $or: [
+        { status: 'flagged' },
+        { reportCount: { $gte: 3 } },
+        { flagged: true }
+      ]
+    }).limit(5).populate('user business', 'firstName lastName businessName')
   ]);
 
   // User statistics by role
@@ -35,8 +46,13 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   ]);
 
   // Business statistics by category
-  const businessesByCategory = await Business.aggregate([
-    { $group: { _id: '$category', count: { $sum: 1 } } }
+  const businessesByCategory = await BusinessProfile.aggregate([
+    { $group: { _id: '$businessCategory', count: { $sum: 1 } } }
+  ]);
+
+  // Business verification statistics
+  const businessesByVerificationStatus = await BusinessProfile.aggregate([
+    { $group: { _id: '$verificationStatus', count: { $sum: 1 } } }
   ]);
 
   // Reviews statistics by rating
@@ -51,15 +67,21 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         totalUsers,
         totalBusinesses,
         totalReviews,
-        pendingFlags: totalFlags,
-        activeSubscriptions
+        pendingVerifications,
+        flaggedContent,
+        activeDisputes,
+        pendingDisputes
       },
       usersByRole: usersByRole.reduce((acc, item) => {
-        acc[item._id] = item.count;
+        acc[item._id || 'unknown'] = item.count;
         return acc;
       }, {}),
       businessesByCategory: businessesByCategory.reduce((acc, item) => {
-        acc[item._id] = item.count;
+        acc[item._id || 'uncategorized'] = item.count;
+        return acc;
+      }, {}),
+      businessesByVerificationStatus: businessesByVerificationStatus.reduce((acc, item) => {
+        acc[item._id || 'unverified'] = item.count;
         return acc;
       }, {}),
       reviewsByRating: reviewsByRating.reduce((acc, item) => {
@@ -145,22 +167,22 @@ const getBusinesses = asyncHandler(async (req, res) => {
 
   let query = {};
   
-  if (category) query.category = category;
-  if (status) query.status = status;
+  if (category) query.businessCategory = category;
+  if (status) query.verificationStatus = status;
   if (search) {
     query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
+      { businessName: { $regex: search, $options: 'i' } },
+      { businessDescription: { $regex: search, $options: 'i' } }
     ];
   }
 
-  const businesses = await Business.find(query)
-    .populate('owner', 'name email')
+  const businesses = await BusinessProfile.find(query)
+    .populate('owner', 'firstName lastName email')
     .sort('-createdAt')
     .limit(limit * 1)
     .skip((page - 1) * limit);
 
-  const total = await Business.countDocuments(query);
+  const total = await BusinessProfile.countDocuments(query);
 
   res.status(200).json({
     success: true,
@@ -181,17 +203,17 @@ const updateBusinessStatus = asyncHandler(async (req, res) => {
   const { status, verificationStatus } = req.body;
   
   const updateData = {};
-  if (status) updateData.status = status;
+  if (status) updateData.isActive = status === 'active';
   if (verificationStatus) {
     updateData.verificationStatus = verificationStatus;
     updateData.isVerified = verificationStatus === 'approved';
   }
 
-  const business = await Business.findByIdAndUpdate(
+  const business = await BusinessProfile.findByIdAndUpdate(
     req.params.id,
     updateData,
     { new: true, runValidators: true }
-  ).populate('owner', 'name email');
+  ).populate('owner', 'firstName lastName email');
 
   if (!business) {
     return res.status(404).json({
@@ -300,7 +322,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
       }},
       { $sort: { _id: 1 } }
     ]),
-    Business.aggregate([
+    BusinessProfile.aggregate([
       { $match: { createdAt: { $gte: daysAgo } } },
       { $group: { 
         _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
@@ -316,15 +338,15 @@ const getAnalytics = asyncHandler(async (req, res) => {
       }},
       { $sort: { _id: 1 } }
     ]),
-    Business.aggregate([
-      { $group: { _id: '$category', count: { $sum: 1 } } },
+    BusinessProfile.aggregate([
+      { $group: { _id: '$businessCategory', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 10 }
     ]),
-    Business.aggregate([
+    BusinessProfile.aggregate([
       { $sort: { averageRating: -1, totalReviews: -1 } },
       { $limit: 10 },
-      { $project: { name: 1, category: 1, averageRating: 1, totalReviews: 1 } }
+      { $project: { businessName: 1, businessCategory: 1, averageRating: 1, totalReviews: 1 } }
     ])
   ]);
 

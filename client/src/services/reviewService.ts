@@ -3,12 +3,16 @@ import api from './api';
 export interface Review {
   _id: string;
   business: string;
-  user: {
+  user?: {
     _id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
   };
+  // Anonymous review fields
+  reviewerName?: string;
+  reviewerEmail?: string;
+  isAnonymous?: boolean;
   rating: number;
   title: string;
   content: string;
@@ -31,6 +35,24 @@ export interface CreateReviewData {
   title: string;
   content: string;
   photos?: File[];
+}
+
+export interface AnonymousReviewData {
+  business: string;
+  rating: number;
+  title?: string;
+  content: string;
+  reviewerName: string;
+  reviewerEmail: string;
+  images?: string[];
+}
+
+export interface EmailVerificationData {
+  reviewId: string;
+}
+
+export interface ResendEmailData {
+  reviewId: string;
 }
 
 export interface UpdateReviewData {
@@ -63,8 +85,14 @@ export const reviewService = {
     totalPages: number;
     averageRating: number;
   }> {
-    const response = await api.get('/reviews', { params });
-    return response.data;
+    const response = await api.get('/review', { params });
+    return {
+      reviews: response.data.data || [],
+      total: response.data.pagination?.totalReviews || 0,
+      page: response.data.pagination?.currentPage || 1,
+      totalPages: response.data.pagination?.totalPages || 1,
+      averageRating: response.data.averageRating || 0
+    };
   },
 
   // Get reviews for a specific business
@@ -75,10 +103,17 @@ export const reviewService = {
     totalPages: number;
     averageRating: number;
   }> {
-    const response = await api.get('/reviews', { 
-      params: { ...params, businessId } 
+    const response = await api.get(`/review/business/${businessId}`, { 
+      params 
     });
-    return response.data;
+    // Transform API response to match expected format
+    return {
+      reviews: response.data.data || [],
+      total: response.data.count || 0,
+      page: parseInt(response.data.pagination?.currentPage) || 1,
+      totalPages: response.data.pagination?.totalPages || 1,
+      averageRating: response.data.averageRating || 0
+    };
   },
 
   // Get single review by ID
@@ -101,12 +136,34 @@ export const reviewService = {
       });
     }
 
-    const response = await api.post('/reviews', formData, {
+    const response = await api.post('/review', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
     return response.data.review;
+  },
+
+  // Create anonymous review (no authentication required)
+  async createAnonymousReview(formData: FormData): Promise<any> {
+    const response = await api.post('/review/anonymous', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Verify anonymous review email (via link)
+  async verifyAnonymousEmail(token: string): Promise<any> {
+    const response = await api.get(`/review/verify/${token}`);
+    return response.data;
+  },
+
+  // Resend email verification
+  async resendEmailVerification(data: ResendEmailData): Promise<any> {
+    const response = await api.post('/review/resend-email-verification', data);
+    return response.data;
   },
 
   // Update review (requires review ownership)
@@ -162,14 +219,14 @@ export const reviewService = {
 
   // Mark review as helpful
   async markHelpful(reviewId: string): Promise<Review> {
-    const response = await api.post(`/reviews/${reviewId}/helpful`);
-    return response.data.review;
+    const response = await api.post(`/review/${reviewId}/helpful`);
+    return response.data.data;
   },
 
   // Remove helpful mark
   async removeHelpful(reviewId: string): Promise<Review> {
-    const response = await api.delete(`/reviews/${reviewId}/helpful`);
-    return response.data.review;
+    const response = await api.delete(`/review/${reviewId}/helpful`);
+    return response.data.data;
   },
 
   // Flag review as inappropriate
@@ -204,6 +261,24 @@ export const reviewService = {
   }> {
     const response = await api.get(`/reviews/stats/${businessId}`);
     return response.data;
+  },
+
+  // Get user reviews (for profile page)
+  async getUserReviews(userId?: string): Promise<{
+    reviews: Review[];
+    total: number;
+  }> {
+    try {
+      const endpoint = userId ? `/review/user/${userId}` : '/review/my-reviews';
+      const response = await api.get(endpoint);
+      return {
+        reviews: response.data.data || [],
+        total: response.data.total || 0
+      };
+    } catch (error) {
+      console.error('Error fetching user reviews:', error);
+      throw error;
+    }
   }
 };
 

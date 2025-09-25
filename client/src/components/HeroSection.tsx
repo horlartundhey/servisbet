@@ -1,14 +1,23 @@
 
 import React from 'react';
-import SearchBar from './SearchBar';
+import SearchBar, { SearchFilters } from './SearchBar';
 
 interface HeroSectionProps {
   onSearch: (query: string) => void;
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({ onSearch }) => {
-  const handleSearch = (query: string) => {
-    window.location.href = `/search?q=${encodeURIComponent(query)}`;
+  const handleSearch = (query: string, filters?: SearchFilters) => {
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (filters?.category) params.set('category', filters.category);
+    if (filters?.location) params.set('location', filters.location);
+    if (filters?.rating) params.set('rating', filters.rating.toString());
+    if (filters?.priceRange) params.set('priceRange', filters.priceRange);
+    if (filters?.sortBy) params.set('sortBy', filters.sortBy);
+    if (filters?.openNow) params.set('openNow', 'true');
+
+    window.location.href = `/search?${params.toString()}`;
   };
   return (
     <section className="relative bg-gradient-to-br from-primary/5 via-white to-primary/10 py-20">

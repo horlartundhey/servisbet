@@ -1,0 +1,481 @@
+{
+  "info": {
+    "name": "ServisbetA Phase 2 - Reviews with Photos & Notifications",
+    "description": "Test collection for Phase 2 features: photo uploads, comprehensive notifications, and cron jobs",
+    "version": "2.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "businessId",
+      "value": "68b5a2ec89bca9ab53c9051b",
+      "type": "string",
+      "description": "Real business ID from database"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT token for admin access"
+    },
+    {
+      "key": "userToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT token for user access"
+    },
+    {
+      "key": "reviewId",
+      "value": "",
+      "type": "string",
+      "description": "Created review ID for testing"
+    }
+  ],
+  "item": [
+    {
+      "name": "Phase 1 - Anonymous Reviews (Existing)",
+      "item": [
+        {
+          "name": "Create Anonymous Review (No Photos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response contains success', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Review created with correct data', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('rating', 5);",
+                  "    pm.expect(jsonData.data).to.have.property('isAnonymous', true);",
+                  "    pm.expect(jsonData.data.status).to.equal('pending');",
+                  "});",
+                  "",
+                  "// Store review ID for later tests",
+                  "if (pm.response.code === 201) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('reviewId', jsonData.data._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"businessId\": \"{{businessId}}\",\n    \"rating\": 5,\n    \"title\": \"Excellent Service!\",\n    \"content\": \"Had a wonderful experience with this business. The staff was friendly and professional. Highly recommend!\",\n    \"reviewerName\": \"Jane Smith\",\n    \"reviewerEmail\": \"jane.smith+test@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/review/anonymous",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "review", "anonymous"]
+            },
+            "description": "Create an anonymous review without photos to test Phase 1 functionality"
+          }
+        },
+        {
+          "name": "Get Business Reviews",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns reviews array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Reviews have required fields', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.data.length > 0) {",
+                  "        const review = jsonData.data[0];",
+                  "        pm.expect(review).to.have.property('rating');",
+                  "        pm.expect(review).to.have.property('content');",
+                  "        pm.expect(review).to.have.property('createdAt');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/review/business/{{businessId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "review", "business", "{{businessId}}"]
+            },
+            "description": "Get all reviews for a specific business"
+          }
+        }
+      ],
+      "description": "Test existing Phase 1 functionality"
+    },
+    {
+      "name": "Phase 2 - Photo Uploads & Notifications",
+      "item": [
+        {
+          "name": "Create Anonymous Review with Photos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Review created with photos', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.have.property('images');",
+                  "    // Note: images array might be empty if no files uploaded via form-data",
+                  "});",
+                  "",
+                  "pm.test('Notification system triggered', function () {",
+                  "    // This will be verified by checking email or logs",
+                  "    pm.test('Email verification sent', function () {",
+                  "        pm.expect(pm.response.text()).to.include('verification');",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "businessId",
+                  "value": "{{businessId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "rating",
+                  "value": "4",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Great service with photos!",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "This business exceeded my expectations. Attaching some photos of my experience.",
+                  "type": "text"
+                },
+                {
+                  "key": "reviewerName",
+                  "value": "Mike Johnson",
+                  "type": "text"
+                },
+                {
+                  "key": "reviewerEmail",
+                  "value": "mike.johnson+test@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "photos",
+                  "type": "file",
+                  "src": [],
+                  "description": "Upload 1-5 image files (JPG, PNG, WEBP) up to 5MB each"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/review/anonymous",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "review", "anonymous"]
+            },
+            "description": "Create anonymous review with photo uploads (form-data). Add image files to the 'photos' field to test upload functionality."
+          }
+        },
+        {
+          "name": "Test Photo Upload Error Handling",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Handles large file error', function () {",
+                  "    // This test is designed to fail with large files",
+                  "    if (pm.response.code === 400) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.false;",
+                  "        pm.expect(jsonData.error).to.be.oneOf(['FILE_TOO_LARGE', 'TOO_MANY_FILES']);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Provides helpful error message', function () {",
+                  "    if (pm.response.code === 400) {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.message).to.be.a('string');",
+                  "        pm.expect(jsonData.message.length).to.be.greaterThan(10);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "businessId",
+                  "value": "{{businessId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "rating",
+                  "value": "5",
+                  "type": "text"
+                },
+                {
+                  "key": "title",
+                  "value": "Testing file limits",
+                  "type": "text"
+                },
+                {
+                  "key": "content",
+                  "value": "Testing what happens with too many or too large files",
+                  "type": "text"
+                },
+                {
+                  "key": "reviewerName",
+                  "value": "Test User",
+                  "type": "text"
+                },
+                {
+                  "key": "reviewerEmail",
+                  "value": "test.limits@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "photos",
+                  "type": "file",
+                  "src": [],
+                  "description": "Try uploading >5 files or files >5MB to test error handling"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/review/anonymous",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "review", "anonymous"]
+            },
+            "description": "Test error handling for file size and count limits"
+          }
+        }
+      ],
+      "description": "Test new Phase 2 features"
+    },
+    {
+      "name": "Admin & Cron Jobs",
+      "item": [
+        {
+          "name": "Get Cron Job Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// This will likely return 401 without proper auth",
+                  "pm.test('Endpoint exists', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Returns job status', function () {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.true;",
+                  "        pm.expect(jsonData.data).to.have.property('totalJobs');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "description": "Admin JWT token required"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/cron/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "cron", "status"]
+            },
+            "description": "Get status of cron jobs (requires admin authentication)"
+          }
+        },
+        {
+          "name": "Manual Trigger Weekly Summary (Dev Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// This endpoint only works in development",
+                  "pm.test('Endpoint responds appropriately', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 401, 403]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Job triggered successfully', function () {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.true;",
+                  "        pm.expect(jsonData.message).to.include('triggered successfully');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "description": "Admin JWT token required"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/cron/trigger/weekly-summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "cron", "trigger", "weekly-summary"]
+            },
+            "description": "Manually trigger weekly review summary (development only)"
+          }
+        }
+      ],
+      "description": "Test admin endpoints and cron job functionality"
+    },
+    {
+      "name": "Verification & Notifications",
+      "item": [
+        {
+          "name": "Verify Anonymous Review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Verification response', function () {",
+                  "    // This will vary based on token validity",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 404]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Review verified successfully', function () {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.success).to.be.true;",
+                  "        pm.expect(jsonData.message).to.include('verified');",
+                  "    });",
+                  "",
+                  "    pm.test('Notification system triggered', function () {",
+                  "        // Check server logs for notification emails sent",
+                  "        console.log('Check server logs for:');",
+                  "        console.log('- Email verification confirmation');",
+                  "        console.log('- Business owner notification');",
+                  "        console.log('- Admin notification');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/review/verify/sample-token-here",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "review", "verify", "sample-token-here"]
+            },
+            "description": "Verify anonymous review (replace 'sample-token-here' with actual token from email)"
+          }
+        }
+      ],
+      "description": "Test verification and notification flows"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set timestamp for unique test data",
+          "pm.collectionVariables.set('timestamp', Date.now());",
+          "",
+          "// Log test information",
+          "console.log('🚀 Starting ServisbetA Phase 2 API Test');",
+          "console.log('📅 Time:', new Date().toISOString());",
+          "console.log('🔗 Base URL:', pm.collectionVariables.get('baseUrl'));",
+          "console.log('🏢 Business ID:', pm.collectionVariables.get('businessId'));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test logging",
+          "console.log('✅ Request completed:', pm.info.requestName);",
+          "console.log('📊 Status:', pm.response.code, pm.response.status);",
+          "console.log('⏱️ Response time:', pm.response.responseTime + 'ms');",
+          "",
+          "// Log any errors",
+          "if (pm.response.code >= 400) {",
+          "    console.log('❌ Error Response:', pm.response.text());",
+          "}"
+        ]
+      }
+    }
+  ]
+}

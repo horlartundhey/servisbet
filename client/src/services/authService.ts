@@ -170,7 +170,7 @@ export const authService = {
 
   // Verify email
   async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
-    const response = await api.post('/auth/verify-email', { token });
+    const response = await api.get(`/auth/verify-email/${token}`);
     return response.data;
   },
 

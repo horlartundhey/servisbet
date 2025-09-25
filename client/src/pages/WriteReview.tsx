@@ -1,223 +1,590 @@
-
-import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Upload, X } from 'lucide-react';
+﻿import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Star, Upload, X, Send, ArrowLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { mockBusinesses } from '../data/mockData';
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { businessService } from '@/services/businessService';
+import { reviewService } from '@/services/reviewService';
+
+interface Business {
+  _id: string;
+  name: string;
+  category: string;
+  averageRating?: number;
+  totalReviews?: number;
+  logo?: string;
+}
 
 const WriteReview = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const { toast } = useToast();
   
-  const business = mockBusinesses.find(b => b.id === id);
+  // State management
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationData, setVerificationData] = useState<any>(null);
   
-  if (!business) {
+  // Form state
+  const [formData, setFormData] = useState({
+    rating: 0,
+    title: '',
+    content: '',
+    reviewerName: '',
+    reviewerEmail: '',
+    images: [] as File[]
+  });
+  
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Fetch business details
+  useEffect(() => {
+    const fetchBusiness = async () => {
+      try {
+        if (!id) {
+          console.log('WriteReview: No business ID provided');
+          return;
+        }
+        
+        console.log('WriteReview: Fetching business with ID:', id);
+        const response = await businessService.getBusinessById(id);
+        console.log('WriteReview: API Response:', response);
+        setBusiness(response);
+      } catch (error) {
+        console.error('WriteReview: Error fetching business:', error);
+        console.error('WriteReview: Error details:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            baseURL: error.config?.baseURL
+          }
+        });
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not load business details. Please try again."
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBusiness();
+  }, [id, toast]);
+
+  // Handle input changes
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  // Handle star rating
+  const handleRatingClick = (rating: number) => {
+    handleInputChange('rating', rating);
+  };
+
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (formData.images.length + files.length > 5) {
+      toast({
+        variant: "destructive",
+        title: "Too many images",
+        description: "You can upload maximum 5 images per review."
+      });
+      return;
+    }
+    
+    handleInputChange('images', [...formData.images, ...files]);
+  };
+
+  // Remove image
+  const removeImage = (index: number) => {
+    const newImages = formData.images.filter((_, i) => i !== index);
+    handleInputChange('images', newImages);
+  };
+
+  // Validate form
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.rating) newErrors.rating = 'Please select a rating';
+    if (!formData.content.trim()) newErrors.content = 'Please write your review';
+    if (!formData.reviewerName.trim()) newErrors.reviewerName = 'Please enter your name';
+    if (!formData.reviewerEmail.trim()) newErrors.reviewerEmail = 'Please enter your email address';
+    
+    // Validate email format
+    if (formData.reviewerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.reviewerEmail)) {
+      newErrors.reviewerEmail = 'Please enter a valid email address';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Submit review
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      toast({
+        variant: "destructive",
+        title: "Please fix the errors",
+        description: "Check the form for validation errors."
+      });
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      // Create form data for file upload
+      const submitData = new FormData();
+      submitData.append('business', id!);
+      submitData.append('rating', formData.rating.toString());
+      submitData.append('title', formData.title);
+      submitData.append('content', formData.content);
+      submitData.append('reviewerName', formData.reviewerName);
+      submitData.append('reviewerEmail', formData.reviewerEmail);
+      
+      // Add images
+      formData.images.forEach(image => {
+        submitData.append('photos', image);
+      });
+
+      const response = await reviewService.createAnonymousReview(submitData);
+      
+      setVerificationData(response.data);
+      setShowVerification(true);
+      
+      toast({
+        title: "Review Submitted!",
+        description: "Please check your email to verify and publish your review."
+      });
+      
+    } catch (error: any) {
+      console.error('Error submitting review:', error);
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: error.response?.data?.message || "Could not submit review. Please try again."
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Business not found</h1>
-          <Link to="/" className="text-primary hover:underline">← Back to home</Link>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p>Loading business details...</p>
         </div>
       </div>
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Review submitted:', { rating, title, content, images });
-    // In a real app, this would submit to an API
-    navigate(`/business/${id}`);
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      // In a real app, you'd upload these files
-      const newImages = Array.from(files).map(file => URL.createObjectURL(file));
-      setImages([...images, ...newImages.slice(0, 6 - images.length)]);
-    }
-  };
-
-  const removeImage = (index: number) => {
-    setImages(images.filter((_, i) => i !== index));
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <Link to={`/business/${id}`} className="inline-flex items-center text-gray-600 hover:text-primary mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to {business.name}
-          </Link>
+  if (!business) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Business Not Found</h2>
+          <p className="text-gray-600 mb-4">The business you're trying to review could not be found.</p>
+          <Button onClick={() => navigate('/')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
         </div>
       </div>
+    );
+  }
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card>
-          <CardContent className="p-8">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Write a Review</h1>
-              <p className="text-gray-600">Share your experience with {business.name}</p>
-            </div>
+  if (showVerification) {
+    return (
+      <EmailVerification
+        business={business}
+        verificationData={verificationData}
+        onBack={() => setShowVerification(false)}
+        onSuccess={() => navigate(`/business/${id}`)}
+      />
+    );
+  }
 
-            {/* Business Info */}
-            <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg mb-8">
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-2xl mx-auto px-4">
+        {/* Header */}
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          
+          <div className="flex items-center space-x-4">
+            {business.logo && (
               <img
-                src={business.image}
+                src={business.logo}
                 alt={business.name}
-                className="w-16 h-16 object-cover rounded-lg"
+                className="w-16 h-16 rounded-lg object-cover"
               />
-              <div>
-                <h3 className="font-semibold text-lg">{business.name}</h3>
-                <p className="text-gray-600">{business.category}</p>
-              </div>
+            )}
+            <div>
+              <h1 className="text-3xl font-bold">{business.name}</h1>
+              <Badge variant="secondary" className="mt-1">
+                {business.category}
+              </Badge>
+              {business.averageRating && (
+                <div className="flex items-center mt-1">
+                  <div className="flex items-center">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${
+                          i < Math.floor(business.averageRating!)
+                            ? 'text-yellow-400 fill-current'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="ml-2 text-sm text-gray-600">
+                    {business.averageRating.toFixed(1)} ({business.totalReviews} reviews)
+                  </span>
+                </div>
+              )}
             </div>
+          </div>
+        </div>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Write Your Review</CardTitle>
+            <Alert>
+              <AlertDescription>
+                Your review will help other customers make informed decisions. 
+                No account registration required - just verify your email address.
+              </AlertDescription>
+            </Alert>
+          </CardHeader>
+          
+          <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Rating */}
               <div>
-                <label className="block text-lg font-medium mb-3">How would you rate your experience?</label>
-                <div className="flex items-center gap-2">
+                <Label className="text-base font-medium">Rating *</Label>
+                <div className="flex items-center space-x-1 mt-1">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
-                      className="p-1"
-                      onMouseEnter={() => setHoverRating(star)}
-                      onMouseLeave={() => setHoverRating(0)}
-                      onClick={() => setRating(star)}
+                      onClick={() => handleRatingClick(star)}
+                      className="p-1 hover:scale-110 transition-transform"
                     >
                       <Star
-                        size={32}
-                        className={
-                          star <= (hoverRating || rating)
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-gray-300"
-                        }
+                        className={`w-8 h-8 ${
+                          star <= formData.rating
+                            ? 'text-yellow-400 fill-current'
+                            : 'text-gray-300 hover:text-yellow-200'
+                        }`}
                       />
                     </button>
                   ))}
-                  <span className="ml-4 text-lg font-medium">
-                    {rating > 0 && (
-                      rating === 1 ? 'Poor' :
-                      rating === 2 ? 'Fair' :
-                      rating === 3 ? 'Good' :
-                      rating === 4 ? 'Very Good' : 'Excellent'
-                    )}
-                  </span>
+                  {formData.rating > 0 && (
+                    <span className="ml-2 text-sm font-medium">
+                      {formData.rating} star{formData.rating !== 1 ? 's' : ''}
+                    </span>
+                  )}
                 </div>
+                {errors.rating && (
+                  <p className="text-sm text-red-600 mt-1">{errors.rating}</p>
+                )}
               </div>
 
               {/* Title */}
               <div>
-                <label htmlFor="title" className="block text-lg font-medium mb-2">
-                  Review Title
-                </label>
+                <Label htmlFor="title">Review Title (Optional)</Label>
                 <Input
                   id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
                   placeholder="Summarize your experience..."
-                  className="text-lg p-3"
-                  required
+                  maxLength={100}
                 />
               </div>
 
               {/* Content */}
               <div>
-                <label htmlFor="content" className="block text-lg font-medium mb-2">
-                  Your Review
-                </label>
+                <Label htmlFor="content">Your Review *</Label>
                 <Textarea
                   id="content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Tell others about your experience..."
-                  className="min-h-32 text-lg p-3"
-                  required
+                  value={formData.content}
+                  onChange={(e) => handleInputChange('content', e.target.value)}
+                  placeholder="Share your experience with this business. What did you like or dislike?"
+                  rows={5}
+                  maxLength={2000}
                 />
-              </div>
-
-              {/* Image Upload */}
-              <div>
-                <label className="block text-lg font-medium mb-2">Add Photos (Optional)</label>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      id="image-upload"
-                      disabled={images.length >= 6}
-                    />
-                    <label
-                      htmlFor="image-upload"
-                      className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                        images.length >= 6
-                          ? 'border-gray-300 text-gray-400 cursor-not-allowed'
-                          : 'border-primary text-primary hover:bg-primary/5'
-                      }`}
-                    >
-                      <Upload className="h-5 w-5" />
-                      {images.length >= 6 ? 'Maximum 6 photos' : 'Upload Photos'}
-                    </label>
-                    <span className="text-sm text-gray-500">
-                      {images.length}/6 photos uploaded
-                    </span>
-                  </div>
-                  
-                  {images.length > 0 && (
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-                      {images.map((image, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={image}
-                            alt={`Upload ${index + 1}`}
-                            className="w-full aspect-square object-cover rounded-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                <div className="flex justify-between mt-1">
+                  {errors.content && (
+                    <p className="text-sm text-red-600">{errors.content}</p>
                   )}
+                  <p className="text-sm text-gray-500 ml-auto">
+                    {formData.content.length}/2000
+                  </p>
                 </div>
               </div>
 
-              {/* Submit */}
-              <div className="flex gap-4 pt-6">
+              {/* Photos */}
+              <div>
+                <Label>Photos (Optional)</Label>
+                <p className="text-sm text-gray-600 mb-2">
+                  Add up to 5 photos to support your review
+                </p>
+                
+                {formData.images.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+                    {formData.images.map((image, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt={`Upload ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {formData.images.length < 5 && (
+                  <div>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <Label
+                      htmlFor="image-upload"
+                      className="flex items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-gray-50"
+                    >
+                      <div className="text-center">
+                        <Upload className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                        <p className="text-sm text-gray-600">
+                          Click to upload photos
+                        </p>
+                      </div>
+                    </Label>
+                  </div>
+                )}
+              </div>
+
+              {/* Reviewer Information */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4">Contact Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="reviewerName">Your Name *</Label>
+                    <Input
+                      id="reviewerName"
+                      value={formData.reviewerName}
+                      onChange={(e) => handleInputChange('reviewerName', e.target.value)}
+                      placeholder="Enter your name"
+                      maxLength={50}
+                    />
+                    {errors.reviewerName && (
+                      <p className="text-sm text-red-600 mt-1">{errors.reviewerName}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="reviewerEmail">Your Email *</Label>
+                    <Input
+                      id="reviewerEmail"
+                      value={formData.reviewerEmail}
+                      onChange={(e) => handleInputChange('reviewerEmail', e.target.value)}
+                      placeholder="your@email.com"
+                      type="email"
+                    />
+                    <p className="text-xs text-gray-600 mt-1">
+                      Used for verification and review updates
+                    </p>
+                    {errors.reviewerEmail && (
+                      <p className="text-sm text-red-600 mt-1">{errors.reviewerEmail}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-4">
                 <Button
                   type="submit"
-                  size="lg"
-                  className="flex-1"
-                  disabled={rating === 0 || !title.trim() || !content.trim()}
+                  disabled={submitting}
+                  className="w-full md:w-auto"
                 >
-                  Submit Review
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Submit Review
+                    </>
+                  )}
                 </Button>
-                <Link to={`/business/${id}`}>
-                  <Button type="button" variant="outline" size="lg">
-                    Cancel
-                  </Button>
-                </Link>
               </div>
             </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// Email Verification Component
+interface EmailVerificationProps {
+  business: Business;
+  verificationData: any;
+  onBack: () => void;
+  onSuccess: () => void;
+}
+
+const EmailVerification: React.FC<EmailVerificationProps> = ({
+  business,
+  verificationData,
+  onBack,
+  onSuccess
+}) => {
+  const [resending, setResending] = useState(false);
+  const { toast } = useToast();
+
+  const handleResendEmail = async () => {
+    setResending(true);
+
+    try {
+      await reviewService.resendEmailVerification({
+        reviewId: verificationData.reviewId
+      });
+
+      toast({
+        title: "Email Sent",
+        description: "A new verification email has been sent to your inbox."
+      });
+    } catch (error: any) {
+      console.error('Failed to resend email:', error);
+      toast({
+        variant: "destructive",
+        title: "Failed to Resend",
+        description: error.response?.data?.message || "Could not resend verification email."
+      });
+    } finally {
+      setResending(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-md mx-auto px-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-center">Check Your Email</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Send className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Verification Email Sent!</h3>
+              <p className="text-gray-600 mb-4">
+                We've sent a verification link to{' '}
+                <span className="font-medium">{verificationData.reviewerEmail}</span>
+              </p>
+              <p className="text-sm text-gray-500 mb-4">
+                Please check your email and click the verification link to publish your review for{' '}
+                <span className="font-medium">{business.name}</span>.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <Alert>
+                <AlertDescription>
+                  <strong>What happens next:</strong>
+                  <ol className="list-decimal list-inside mt-2 space-y-1 text-sm">
+                    <li>Check your email inbox (and spam folder)</li>
+                    <li>Click the verification link in the email</li>
+                    <li>Your review will be published immediately</li>
+                    <li>You'll receive a confirmation email</li>
+                  </ol>
+                </AlertDescription>
+              </Alert>
+
+              <div className="text-center space-y-3">
+                <p className="text-sm text-gray-600">Didn't receive the email?</p>
+                
+                <Button
+                  onClick={handleResendEmail}
+                  disabled={resending}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {resending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    'Resend Verification Email'
+                  )}
+                </Button>
+                
+                <div>
+                  <button
+                    onClick={onBack}
+                    className="text-sm text-gray-600 hover:underline"
+                  >
+                    Back to review form
+                  </button>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    onClick={onSuccess}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Continue to {business.name}
+                  </button>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

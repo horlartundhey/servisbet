@@ -54,8 +54,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<{ user: User; token: string }> => {
     try {
       setIsLoading(true);
+      console.log('AuthContext login called with:', { email }); // Debug log
       const response = await authService.login({ email, password });
-      setUser(response.user);
+      console.log('AuthService response:', response); // Debug log
+      
+      if (response && response.user) {
+        console.log('Setting user in context:', response.user); // Debug log
+        setUser(response.user);
+        console.log('User set, current state should update'); // Debug log
+      } else {
+        console.error('Invalid response structure:', response); // Debug log
+      }
+      
       return { user: response.user, token: response.token };
     } catch (error) {
       console.error('Login error:', error);
@@ -115,6 +125,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     hasRole,
     setUser,
   };
+
+  console.log('AuthContext value:', { user, isAuthenticated: !!user }); // Debug log
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

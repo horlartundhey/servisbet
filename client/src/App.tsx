@@ -5,17 +5,22 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { NotificationCenterProvider } from "./contexts/NotificationCenterContext";
+import { NotificationProvider as SocketNotificationProvider } from "./contexts/NotificationSocketContext";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Index from "./pages/Index";
 import BusinessDetail from "./pages/BusinessDetail";
+import AllBusinesses from "./pages/AllBusinesses";
 import WriteReview from "./pages/WriteReview";
 import UserProfile from "./pages/UserProfile";
 import SearchResults from "./pages/SearchResults";
 import BusinessDashboard from "./pages/BusinessDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import Auth from "./pages/Auth";
-import EmailVerification from "./pages/EmailVerification";
+import VerifyEmail from "./pages/VerifyEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Pricing from "./pages/Pricing";
@@ -48,7 +53,10 @@ const ProtectedRoute = ({
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
   
+  console.log('PublicRoute check:', { isAuthenticated, user }); // Debug log
+  
   if (isAuthenticated && user) {
+    console.log('PublicRoute redirecting user with role:', user.role); // Debug log
     // Redirect based on user role
     if (user.role === 'admin') {
       return <Navigate to="/admin" replace />;
@@ -69,6 +77,7 @@ const AppContent = () => (
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Index />} />
+        <Route path="/businesses" element={<AllBusinesses />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/business/:id" element={<BusinessDetail />} />
         <Route path="/pricing" element={<Pricing />} />
@@ -81,16 +90,14 @@ const AppContent = () => (
         } />
         
         {/* Email Verification Routes */}
-        <Route path="/verify-email" element={<EmailVerification />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/verify-review" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         
-        {/* Protected Routes - Require Authentication */}
-        <Route path="/write-review/:id" element={
-          <ProtectedRoute>
-            <WriteReview />
-          </ProtectedRoute>
-        } />
+        {/* Anonymous Review Route - No Authentication Required */}
+        <Route path="/write-review/:id" element={<WriteReview />} />
         
         <Route path="/profile" element={
           <ProtectedRoute roles={['user']}>
@@ -102,6 +109,12 @@ const AppContent = () => (
         <Route path="/business-dashboard" element={
           <ProtectedRoute roles={['business']}>
             <BusinessDashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/analytics" element={
+          <ProtectedRoute roles={['business']}>
+            <AnalyticsPage />
           </ProtectedRoute>
         } />
         
@@ -123,13 +136,19 @@ const AppContent = () => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </BrowserRouter>
+      <NotificationProvider>
+        <NotificationCenterProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <SocketNotificationProvider>
+                <AppContent />
+              </SocketNotificationProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </NotificationCenterProvider>
+      </NotificationProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

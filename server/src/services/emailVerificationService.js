@@ -29,7 +29,7 @@ class EmailVerificationService {
       <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Verify Your Review - ServisbetA</title>
+          <title>Verify Your Review - Servisbeta</title>
           <style>
               body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
               .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -80,8 +80,8 @@ class EmailVerificationService {
                   <p style="word-break: break-all; color: #FF1744;">${verificationUrl}</p>
               </div>
               <div class="footer">
-                  <p>This email was sent by ServisbetA | <a href="${baseUrl}">Visit our website</a></p>
-                  <p>© ${new Date().getFullYear()} ServisbetA. All rights reserved.</p>
+                  <p>This email was sent by Servisbeta | <a href="${baseUrl}">Visit our website</a></p>
+                  <p>© ${new Date().getFullYear()} Servisbeta. All rights reserved.</p>
               </div>
           </div>
       </body>
@@ -113,14 +113,14 @@ class EmailVerificationService {
       If you didn't request this review, please ignore this email.
 
       Best regards,
-      The ServisbetA Team
+      The Servisbeta Team
       ${baseUrl}
     `;
 
     const mailOptions = {
-      from: `"ServisbetA Reviews" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: `"Servisbeta Reviews" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: reviewData.anonymousReviewer.email,
-      subject: `Verify Your Review for ${businessData.name} - ServisbetA`,
+      subject: `Verify Your Review for ${businessData.name} - Servisbeta`,
       text: textContent,
       html: htmlContent
     };
@@ -153,7 +153,7 @@ class EmailVerificationService {
       <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Review Published - ServisbetA</title>
+          <title>Review Published - Servisbeta</title>
           <style>
               body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
               .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -170,7 +170,7 @@ class EmailVerificationService {
                   <div class="success-badge">Thank you ${reviewData.anonymousReviewer.name}!</div>
               </div>
               <div class="content">
-                  <p>Great news! Your review for <strong>${businessData.name}</strong> has been successfully published on ServisbetA.</p>
+                  <p>Great news! Your review for <strong>${businessData.name}</strong> has been successfully published on Servisbeta.</p>
                   
                   <center>
                       <a href="${reviewUrl}" class="button">View Your Published Review</a>
@@ -192,9 +192,9 @@ class EmailVerificationService {
     `;
 
     const mailOptions = {
-      from: `"ServisbetA Reviews" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: `"Servisbeta Reviews" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: reviewData.anonymousReviewer.email,
-      subject: `Your Review is Now Live! - ServisbetA`,
+      subject: `Your Review is Now Live! - Servisbeta`,
       html: htmlContent
     };
 
@@ -260,7 +260,7 @@ class EmailVerificationService {
         
         <div style="padding: 20px; text-align: center; color: #6c757d; font-size: 14px; background: #f8f9fa; border-radius: 0 0 10px 10px;">
           <p style="margin: 0;">This alert is sent when your business rating drops below 4.0 stars</p>
-          <p style="margin: 5px 0 0 0;">© ${new Date().getFullYear()} ServisbetA - Business Review Platform</p>
+          <p style="margin: 5px 0 0 0;">© ${new Date().getFullYear()} Servisbeta - Business Review Platform</p>
         </div>
       </div>
     `;

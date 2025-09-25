@@ -29,3 +29,68 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# ===================================
+# CUSTOM: Debug, Test, and Migration Scripts
+# ===================================
+
+# Debug scripts
+debug-*.js
+check-*.js
+test-*.js
+create-*.js
+checkBusinesses.js
+checkUsers.js
+
+# Migration and fix scripts
+fix-*.js
+migrate-*.js
+update-*.js
+clean-*.js
+repair-*.js
+
+# Database utility scripts
+seed-*.js
+populate-*.js
+reset-*.js
+
+# Temporary test files
+*-test.js
+*-testing.js
+temp-*.js
+scratch-*.js
+
+# Script output files
+*.json.backup
+*.bak
+output-*.txt
+results-*.txt
+
+# Deployment test files
+deploy-test.*
+staging-test.*
+
+# MongoDB connection test files
+mongo-test.*
+db-test.*
+connection-test.*
+
+# Image upload test files
+upload-test.*
+image-test.*
+cloudinary-test.*
+
+# API test files
+api-test.*
+endpoint-test.*
+route-test.*
+
+# Performance test files
+performance-*.js
+load-test.*
+stress-test.*
+
+# Security test files
+security-test.*
+auth-test.*
+validation-test.*

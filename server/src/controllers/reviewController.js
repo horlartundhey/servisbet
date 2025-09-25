@@ -1,7 +1,9 @@
 const Review = require('../models/Review');
-const Business = require('../models/Business');
+const BusinessProfile = require('../models/BusinessProfile');
 const User = require('../models/User');
 const emailVerificationService = require('../services/emailVerificationService');
+const reviewNotificationService = require('../services/reviewNotificationService');
+const socketService = require('../services/socketService');
 const asyncHandler = require('../middlewares/asyncHandler');
 
 // Helper function to get client IP address
@@ -49,6 +51,7 @@ const checkAndSendLowRatingAlert = async (review, business) => {
         if (businessOwner) {
           console.log(`🚨 Low rating alert for ${business.name} - Current rating: ${averageRating.toFixed(2)}`);
           
+          // Send email alert
           await emailVerificationService.sendLowRatingAlert({
             businessOwner,
             business,
@@ -61,6 +64,14 @@ const checkAndSendLowRatingAlert = async (review, business) => {
               createdAt: review.createdAt
             }
           });
+
+          // Send real-time socket notification
+          socketService.sendLowRatingAlert(
+            business._id,
+            business,
+            averageRating.toFixed(2),
+            review
+          );
         }
       }
     }
@@ -83,7 +94,7 @@ const getBusinessReviews = asyncHandler(async (req, res) => {
     maxRating
   } = req.query;
 
-  const business = await Business.findById(req.params.businessId);
+  const business = await BusinessProfile.findById(req.params.businessId);
   
   if (!business) {
     return res.status(404).json({
@@ -154,8 +165,41 @@ const getMyReviews = asyncHandler(async (req, res) => {
 const createReview = asyncHandler(async (req, res) => {
   const { business, rating, title, content, images, videos } = req.body;
 
+  // Handle uploaded files
+  let uploadedImages = [];
+  if (req.files && req.files.length > 0) {
+    uploadedImages = req.files.map(file => file.path); // Extract just the Cloudinary URLs
+  }
+
+  // Process provided images - handle both string URLs and objects
+  let processedImages = [];
+  if (images && Array.isArray(images)) {
+    processedImages = images.map(img => {
+      if (typeof img === 'string') {
+        return img; // Already a URL string
+      } else if (typeof img === 'object' && img.url) {
+        return img.url; // Extract URL from object
+      }
+      return null;
+    }).filter(Boolean);
+  } else if (typeof images === 'string') {
+    // Handle case where images might be sent as stringified JSON
+    try {
+      const parsed = JSON.parse(images);
+      if (Array.isArray(parsed)) {
+        processedImages = parsed.map(img => img.url || img).filter(Boolean);
+      }
+    } catch (e) {
+      // If parsing fails, treat as single URL
+      processedImages = [images];
+    }
+  }
+
+  // Merge uploaded images with processed image URLs
+  const allImages = [...uploadedImages, ...processedImages];
+
   // Check if business exists
-  const businessExists = await Business.findById(business);
+  const businessExists = await BusinessProfile.findById(business);
   if (!businessExists) {
     return res.status(404).json({
       success: false,
@@ -182,7 +226,7 @@ const createReview = asyncHandler(async (req, res) => {
     rating,
     title,
     content: content || req.body.text, // Backward compatibility
-    images: images || [],
+    images: allImages,
     videos: videos || [],
     source: 'web',
     isAnonymous: false,
@@ -192,6 +236,23 @@ const createReview = asyncHandler(async (req, res) => {
 
   await review.populate('user', 'name email');
   await review.populate('business', 'name slug');
+
+  // Send notifications asynchronously
+  setImmediate(async () => {
+    try {
+      const business = await BusinessProfile.findById(review.business);
+      if (business) {
+        // Send email notifications
+        await reviewNotificationService.sendNewReviewNotification(review, business);
+        await reviewNotificationService.sendAdminReviewNotification(review, business);
+        
+        // Send real-time socket notification to business
+        socketService.sendNewReviewNotification(business._id, review, business);
+      }
+    } catch (error) {
+      console.error('Error sending review notifications:', error);
+    }
+  });
 
   res.status(201).json({
     success: true,
@@ -213,11 +274,44 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
     images, 
     videos,
     reviewerName,
-    reviewerEmail 
+    reviewerEmail
   } = req.body;
 
   // Use businessId if provided, otherwise use business
   const targetBusiness = businessId || business;
+
+  // Handle uploaded files
+  let uploadedImages = [];
+  if (req.files && req.files.length > 0) {
+    uploadedImages = req.files.map(file => file.path); // Extract just the Cloudinary URLs
+  }
+
+  // Process provided images - handle both string URLs and objects
+  let processedImages = [];
+  if (images && Array.isArray(images)) {
+    processedImages = images.map(img => {
+      if (typeof img === 'string') {
+        return img; // Already a URL string
+      } else if (typeof img === 'object' && img.url) {
+        return img.url; // Extract URL from object
+      }
+      return null;
+    }).filter(Boolean);
+  } else if (typeof images === 'string') {
+    // Handle case where images might be sent as stringified JSON
+    try {
+      const parsed = JSON.parse(images);
+      if (Array.isArray(parsed)) {
+        processedImages = parsed.map(img => img.url || img).filter(Boolean);
+      }
+    } catch (e) {
+      // If parsing fails, treat as single URL
+      processedImages = [images];
+    }
+  }
+
+  // Merge uploaded images with processed image URLs
+  const allImages = [...uploadedImages, ...processedImages];
 
   // Validation
   if (!targetBusiness || !rating || !content || !reviewerName || !reviewerEmail) {
@@ -237,7 +331,7 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
   }
 
   // Check if business exists
-  const businessExists = await Business.findById(targetBusiness);
+  const businessExists = await BusinessProfile.findById(targetBusiness);
   if (!businessExists) {
     return res.status(404).json({
       success: false,
@@ -246,12 +340,15 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
   }
 
   const clientIP = getClientIP(req);
+  const deviceFingerprint = req.headers['x-device-fingerprint'] || 
+                           `${req.headers['user-agent']}_${clientIP}`;
 
-  // Check for duplicate reviews (same email for same business, or same IP within 24 hours)
+  // Check for duplicate reviews (same email, IP, or device within timeframe)
   const isDuplicate = await Review.checkDuplicateAnonymousReview(
     reviewerEmail, 
     targetBusiness, 
-    clientIP
+    clientIP,
+    deviceFingerprint
   );
 
   if (isDuplicate) {
@@ -276,7 +373,7 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
     rating,
     title,
     content,
-    images: images || [],
+    images: allImages,
     videos: videos || [],
     isAnonymous: true,
     anonymousReviewer: {
@@ -284,9 +381,10 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
       email: reviewerEmail,
       isVerified: false
     },
-    status: 'pending', // Will be set to published after email verification
+    status: 'pending', // Will be published after email verification
     source: 'web',
     ipAddress: clientIP,
+    deviceFingerprint,
     userAgent: req.headers['user-agent'],
     submissionAttempts: 1
   });
@@ -311,7 +409,7 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
     });
   }
 
-  // Send verification email
+  // Send email verification
   try {
     await emailVerificationService.sendAnonymousReviewVerification(
       review, 
@@ -325,7 +423,8 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
       data: {
         reviewId: review._id,
         verificationRequired: true,
-        reviewerEmail: reviewerEmail
+        reviewerEmail: reviewerEmail,
+        businessName: businessExists.name
       }
     });
   } catch (emailError) {
@@ -375,7 +474,7 @@ const verifyAnonymousReview = asyncHandler(async (req, res) => {
     await review.verifyAnonymousEmail(token);
 
     // Get business details for confirmation email
-    const business = await Business.findById(review.business);
+    const business = await BusinessProfile.findById(review.business);
     
     // Send confirmation email
     if (business) {
@@ -393,6 +492,20 @@ const verifyAnonymousReview = asyncHandler(async (req, res) => {
       } catch (alertError) {
         console.error('Failed to send low rating alert:', alertError);
       }
+
+      // Send general review notifications asynchronously
+      setImmediate(async () => {
+        try {
+          // Send email notifications
+          await reviewNotificationService.sendNewReviewNotification(review, business);
+          await reviewNotificationService.sendAdminReviewNotification(review, business);
+          
+          // Send real-time socket notification to business
+          socketService.sendNewReviewNotification(business._id, review, business);
+        } catch (notificationError) {
+          console.error('Failed to send review notifications:', notificationError);
+        }
+      });
     }
 
     res.status(200).json({
@@ -408,6 +521,75 @@ const verifyAnonymousReview = asyncHandler(async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message
+    });
+  }
+});
+
+// @desc    Resend email verification
+// @route   POST /api/review/resend-email-verification
+// @access  Public
+const resendEmailVerification = asyncHandler(async (req, res) => {
+  const { reviewId } = req.body;
+
+  if (!reviewId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Review ID is required'
+    });
+  }
+
+  const review = await Review.findById(reviewId);
+
+  if (!review) {
+    return res.status(404).json({
+      success: false,
+      message: 'Review not found'
+    });
+  }
+
+  if (!review.isAnonymous || review.anonymousReviewer.isVerified) {
+    return res.status(400).json({
+      success: false,
+      message: 'This review does not require email verification'
+    });
+  }
+
+  // Get business details
+  const business = await BusinessProfile.findById(review.business);
+  if (!business) {
+    return res.status(404).json({
+      success: false,
+      message: 'Business not found'
+    });
+  }
+
+  try {
+    // Generate new verification token
+    const crypto = require('crypto');
+    review.anonymousReviewer.verificationToken = crypto.randomBytes(32).toString('hex');
+    review.anonymousReviewer.verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    await review.save();
+
+    // Send new verification email
+    await emailVerificationService.sendAnonymousReviewVerification(
+      review, 
+      review.anonymousReviewer.verificationToken,
+      business
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `New verification email sent to ${review.anonymousReviewer.email}`,
+      data: {
+        reviewId: review._id,
+        email: review.anonymousReviewer.email
+      }
+    });
+  } catch (error) {
+    console.error('Failed to resend verification email:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to resend verification email'
     });
   }
 });
@@ -530,7 +712,7 @@ const addBusinessResponse = asyncHandler(async (req, res) => {
     });
   }
 
-  const business = await Business.findById(review.business);
+  const business = await BusinessProfile.findById(review.business);
   
   // Check if user owns the business or is admin
   if (business.owner.toString() !== req.user.id && req.user.role !== 'admin') {
@@ -618,12 +800,99 @@ const removeHelpfulMark = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get all recent reviews
+// @route   GET /api/reviews
+// @access  Public
+const getAllReviews = asyncHandler(async (req, res) => {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+    rating,
+    businessId
+  } = req.query;
+
+  // Build query
+  let query = { isVerified: true }; // Only show verified reviews
+  
+  if (rating) {
+    query.rating = rating;
+  }
+  
+  if (businessId) {
+    query.business = businessId;
+  }
+
+  // Build sort object
+  const sort = {};
+  sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+  const pageNum = parseInt(page, 10);
+  const limitNum = parseInt(limit, 10);
+  const skip = (pageNum - 1) * limitNum;
+
+  try {
+    const reviews = await Review.find(query)
+      .populate({
+        path: 'business',
+        select: 'name category businessSlug images'
+      })
+      .populate({
+        path: 'user',
+        select: 'firstName lastName avatar'
+      })
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    const totalReviews = await Review.countDocuments(query);
+    const totalPages = Math.ceil(totalReviews / limitNum);
+
+    // Calculate average rating
+    const ratingStats = await Review.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' }
+        }
+      }
+    ]);
+
+    const averageRating = ratingStats.length > 0 ? ratingStats[0].averageRating : 0;
+
+    res.status(200).json({
+      success: true,
+      count: reviews.length,
+      data: reviews,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalReviews,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      },
+      averageRating: Number(averageRating.toFixed(1))
+    });
+  } catch (error) {
+    console.error('Error getting reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving reviews'
+    });
+  }
+});
+
 module.exports = {
+  getAllReviews,
   getBusinessReviews,
   getMyReviews,
   createReview,
   createAnonymousReview,
   verifyAnonymousReview,
+  resendEmailVerification,
   getPendingVerificationReviews,
   updateReview,
   deleteReview,

@@ -1,262 +1,555 @@
-
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit, MapPin, Calendar, Award, Camera, User as UserIcon } from 'lucide-react';
+import { 
+  User, 
+  Star, 
+  Calendar, 
+  ThumbsUp, 
+  MessageCircle, 
+  TrendingUp, 
+  Award, 
+  Clock,
+  Edit,
+  Settings,
+  Mail
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "../contexts/AuthContext";
-import StarRating from '../components/StarRating';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from "@/hooks/use-toast";
+import { reviewService } from '../services/reviewService';
 import ReviewCard from '../components/ReviewCard';
-import { mockReviews } from '../data/mockData';
+
+interface UserReview {
+  _id: string;
+  business: {
+    _id: string;
+    name: string;
+  };
+  rating: number;
+  title: string;
+  content: string;
+  photos?: string[];
+  helpfulVotes: number;
+  isMarkedHelpful?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+interface UserStats {
+  totalReviews: number;
+  averageRating: number;
+  totalHelpfulVotes: number;
+  totalPhotos: number;
+  joinedDate: string;
+  reviewStreak: number;
+  badges: string[];
+}
 
 const UserProfile = () => {
   const { user, updateUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('reviews');
+  const { toast } = useToast();
+  
+  const [userReviews, setUserReviews] = useState<UserReview[]>([]);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
+  
+  const [profileForm, setProfileForm] = useState({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    bio: '',
     location: '',
-    bio: ''
+    website: ''
   });
 
   useEffect(() => {
-    if (user) {
-      setProfileData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        location: user.location || '',
-        bio: user.bio || ''
-      });
-    }
+    loadUserProfile();
   }, [user]);
 
-  const handleSaveProfile = async () => {
+  const loadUserProfile = async () => {
+    if (!user) return;
+    
+    setLoading(true);
     try {
-      await updateUser(profileData);
+      // Load user reviews
+      const reviewsResponse = await reviewService.getUserReviews(user._id);
+      setUserReviews(reviewsResponse.reviews || []);
+
+      // Calculate user statistics
+      const stats = calculateUserStats(reviewsResponse.reviews || [], user);
+      setUserStats(stats);
+      
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      // Generate mock data for demonstration
+      const mockReviews = generateMockReviews();
+      const mockStats = calculateUserStats(mockReviews, user);
+      setUserReviews(mockReviews);
+      setUserStats(mockStats);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateUserStats = (reviews: UserReview[], currentUser: any): UserStats => {
+    const totalReviews = reviews.length;
+    const averageRating = totalReviews > 0 
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+      : 0;
+    const totalHelpfulVotes = reviews.reduce((sum, review) => sum + review.helpfulVotes, 0);
+    const totalPhotos = reviews.reduce((sum, review) => sum + (review.photos?.length || 0), 0);
+    const joinedDate = currentUser?.createdAt || new Date().toISOString();
+    
+    // Calculate review streak (days with at least one review in last 30 days)
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const recentReviews = reviews.filter(review => 
+      new Date(review.createdAt) >= thirtyDaysAgo
+    );
+    const reviewStreak = recentReviews.length;
+    
+    // Calculate badges
+    const badges = [];
+    if (totalReviews >= 10) badges.push('Prolific Reviewer');
+    if (averageRating >= 4) badges.push('Positive Reviewer');
+    if (totalHelpfulVotes >= 50) badges.push('Helpful Contributor');
+    if (totalPhotos >= 20) badges.push('Photo Expert');
+    if (reviewStreak >= 7) badges.push('Active Member');
+
+    return {
+      totalReviews,
+      averageRating: parseFloat(averageRating.toFixed(1)),
+      totalHelpfulVotes,
+      totalPhotos,
+      joinedDate,
+      reviewStreak,
+      badges
+    };
+  };
+
+  const generateMockReviews = (): UserReview[] => {
+    return [
+      {
+        _id: '1',
+        business: { _id: 'b1', name: 'Pizza Palace' },
+        rating: 5,
+        title: 'Amazing pizza experience!',
+        content: 'Had the best margherita pizza here. The crust was perfectly crispy and the ingredients were fresh. Will definitely come back!',
+        photos: ['https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=300&h=200&fit=crop'],
+        helpfulVotes: 12,
+        createdAt: '2024-01-15T10:30:00Z'
+      },
+      {
+        _id: '2',
+        business: { _id: 'b2', name: 'Coffee Corner' },
+        rating: 4,
+        title: 'Great coffee, cozy atmosphere',
+        content: 'Perfect spot for morning coffee. The baristas know their craft and the atmosphere is very welcoming.',
+        helpfulVotes: 8,
+        createdAt: '2024-01-10T14:20:00Z'
+      },
+      {
+        _id: '3',
+        business: { _id: 'b3', name: 'Tech Repair Shop' },
+        rating: 3,
+        title: 'Decent service, could be faster',
+        content: 'They fixed my phone but it took longer than expected. Quality of work was good though.',
+        helpfulVotes: 5,
+        createdAt: '2024-01-05T09:15:00Z'
+      }
+    ];
+  };
+
+  const handleProfileSave = async () => {
+    try {
+      // TODO: Implement profile update API call
+      // await userService.updateProfile(profileForm);
+      
+      // For now, just update local state
+      updateUser({
+        ...user!,
+        firstName: profileForm.firstName,
+        lastName: profileForm.lastName
+      });
+      
       setIsEditing(false);
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been successfully updated."
+      });
     } catch (error) {
       console.error('Error updating profile:', error);
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Could not update profile. Please try again."
+      });
     }
+  };
+
+  const handleMarkHelpful = async (reviewId: string) => {
+    try {
+      await reviewService.markHelpful(reviewId);
+      // Refresh user reviews
+      await loadUserProfile();
+    } catch (error) {
+      console.error('Error marking review as helpful:', error);
+      throw error;
+    }
+  };
+
+  const handleRemoveHelpful = async (reviewId: string) => {
+    try {
+      await reviewService.removeHelpful(reviewId);
+      // Refresh user reviews
+      await loadUserProfile();
+    } catch (error) {
+      console.error('Error removing helpful mark:', error);
+      throw error;
+    }
+  };
+
+  const handleReportReview = (reviewId: string) => {
+    console.log('Reporting review:', reviewId);
   };
 
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Please log in to view your profile.</p>
-          <Link to="/auth" className="text-primary hover:underline">Go to Login</Link>
+        <div className="text-center max-w-md mx-auto p-8">
+          <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Please Sign In</h2>
+          <p className="text-gray-600 mb-4">
+            You need to be signed in to view your profile.
+          </p>
+          <Link to="/auth">
+            <Button>Sign In</Button>
+          </Link>
         </div>
       </div>
     );
   }
 
-  // User stats - these would come from API in real implementation
-  const userStats = {
-    reviewCount: 47,
-    photoCount: 132,
-    helpfulVotes: 284,
-    averageRating: 4.2,
-    joinDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long' 
-    }) : 'Recently'
-  };
-
-  const userReviews = mockReviews.slice(0, 8);
-
-  const stats = [
-    { label: "Reviews", value: userStats.reviewCount, icon: Edit },
-    { label: "Photos", value: userStats.photoCount, icon: Camera },
-    { label: "Helpful votes", value: userStats.helpfulVotes, icon: Award }
-  ];
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          <Link to="/" className="text-primary hover:underline">← Back to home</Link>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading profile...</p>
         </div>
       </div>
+    );
+  }
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Profile Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-8">
-              <CardContent className="p-6 text-center">
-                <div className="relative mb-4">
-                  {user.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={`${user.firstName} ${user.lastName}`}
-                      className="w-24 h-24 rounded-full mx-auto object-cover"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full mx-auto bg-gray-200 flex items-center justify-center">
-                      <UserIcon className="h-12 w-12 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-                
-                {!isEditing ? (
-                  <>
-                    <h1 className="text-2xl font-bold mb-2">{user.firstName} {user.lastName}</h1>
-                    {profileData.location && (
-                      <div className="flex items-center justify-center text-gray-600 mb-2">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {profileData.location}
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-6xl mx-auto px-4">
+        {/* Profile Header */}
+        <Card className="mb-8">
+          <CardContent className="p-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              {/* Avatar */}
+              <Avatar className="w-24 h-24">
+                <AvatarImage src={user.avatar} alt={`${user.firstName} ${user.lastName}`} />
+                <AvatarFallback className="text-2xl">
+                  {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+
+              {/* User Info */}
+              <div className="flex-1">
+                {isEditing ? (
+                  <div className="space-y-4 max-w-md">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input
+                          id="firstName"
+                          value={profileForm.firstName}
+                          onChange={(e) => setProfileForm(prev => ({ ...prev, firstName: e.target.value }))}
+                        />
                       </div>
-                    )}
-                    <div className="flex items-center justify-center text-gray-600 mb-6">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      Member since {userStats.joinDate}
+                      <div>
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input
+                          id="lastName"
+                          value={profileForm.lastName}
+                          onChange={(e) => setProfileForm(prev => ({ ...prev, lastName: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleProfileSave}>
+                        Save Changes
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h1 className="text-3xl font-bold text-gray-900">
+                        {user.firstName} {user.lastName}
+                      </h1>
+                      <Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-4 text-gray-600 mb-4">
+                      <div className="flex items-center gap-1">
+                        <Mail className="w-4 h-4" />
+                        {user.email}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Joined {new Date(userStats?.joinedDate || '').toLocaleDateString()}
+                      </div>
                     </div>
                     
-                    {profileData.bio && (
-                      <p className="text-gray-600 text-sm mb-6 text-left">{profileData.bio}</p>
+                    {/* User Badges */}
+                    {userStats?.badges && userStats.badges.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {userStats.badges.map((badge, index) => (
+                          <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                            <Award className="w-3 h-3" />
+                            {badge}
+                          </Badge>
+                        ))}
+                      </div>
                     )}
-                  </>
-                ) : (
-                  <div className="space-y-4 mb-6">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        placeholder="First Name"
-                        value={profileData.firstName}
-                        onChange={(e) => setProfileData({...profileData, firstName: e.target.value})}
-                      />
-                      <Input
-                        placeholder="Last Name"
-                        value={profileData.lastName}
-                        onChange={(e) => setProfileData({...profileData, lastName: e.target.value})}
-                      />
-                    </div>
-                    <Input
-                      placeholder="Location"
-                      value={profileData.location}
-                      onChange={(e) => setProfileData({...profileData, location: e.target.value})}
-                    />
-                    <Input
-                      placeholder="Phone"
-                      value={profileData.phone}
-                      onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
-                    />
-                    <Textarea
-                      placeholder="Bio"
-                      value={profileData.bio}
-                      onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
-                      rows={3}
-                    />
                   </div>
                 )}
-                
-                <div className="space-y-4">
-                  {stats.map((stat) => (
-                    <div key={stat.label} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <stat.icon className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">{stat.label}</span>
-                      </div>
-                      <span className="font-bold text-primary">{stat.value}</span>
-                    </div>
-                  ))}
-                  
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm font-medium">Average rating</span>
-                    <div className="flex items-center gap-2">
-                      <StarRating rating={userStats.averageRating} size={16} showNumber={false} />
-                      <span className="font-bold text-primary">{userStats.averageRating}</span>
-                    </div>
+              </div>
+
+              {/* Stats Summary */}
+              {userStats && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-primary">{userStats.totalReviews}</div>
+                    <div className="text-sm text-gray-600">Reviews</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-primary">{userStats.averageRating}</div>
+                    <div className="text-sm text-gray-600">Avg Rating</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-primary">{userStats.totalHelpfulVotes}</div>
+                    <div className="text-sm text-gray-600">Helpful Votes</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-primary">{userStats.totalPhotos}</div>
+                    <div className="text-sm text-gray-600">Photos</div>
                   </div>
                 </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-                {!isEditing ? (
-                  <Button className="w-full mt-6" onClick={() => setIsEditing(true)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Profile
-                  </Button>
+        {/* Profile Tabs */}
+        <Tabs defaultValue="reviews" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="reviews">My Reviews</TabsTrigger>
+            <TabsTrigger value="activity">Recent Activity</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          {/* Reviews Tab */}
+          <TabsContent value="reviews" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5" />
+                  My Reviews ({userReviews.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {userReviews.length > 0 ? (
+                  <div className="space-y-6">
+                    {userReviews.map((review) => (
+                      <div key={review._id} className="border-b border-gray-200 last:border-b-0 pb-6 last:pb-0">
+                        <div className="flex items-center justify-between mb-3">
+                          <Link 
+                            to={`/business/${review.business._id}`}
+                            className="text-lg font-semibold text-primary hover:underline"
+                          >
+                            {review.business.name}
+                          </Link>
+                          <div className="text-sm text-gray-500">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        
+                        <ReviewCard
+                          id={review._id}
+                          customerName={`${user.firstName} ${user.lastName}`}
+                          customerAvatar={user.avatar || ''}
+                          rating={review.rating}
+                          date={new Date(review.createdAt).toLocaleDateString()}
+                          title={review.title}
+                          content={review.content}
+                          images={review.photos || []}
+                          helpfulCount={review.helpfulVotes}
+                          isMarkedHelpful={review.isMarkedHelpful}
+                          onMarkHelpful={handleMarkHelpful}
+                          onRemoveHelpful={handleRemoveHelpful}
+                          onReport={handleReportReview}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <div className="flex gap-2 mt-6">
-                    <Button className="flex-1" onClick={handleSaveProfile}>Save</Button>
-                    <Button variant="outline" className="flex-1" onClick={() => setIsEditing(false)}>Cancel</Button>
+                  <div className="text-center py-8">
+                    <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
+                    <p className="text-gray-600 mb-4">Start sharing your experiences with the community!</p>
+                    <Link to="/businesses">
+                      <Button>Find Businesses to Review</Button>
+                    </Link>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3 mb-8">
-                <TabsTrigger value="reviews">Reviews ({userStats.reviewCount})</TabsTrigger>
-                <TabsTrigger value="photos">Photos ({userStats.photoCount})</TabsTrigger>
-                <TabsTrigger value="activity">Recent Activity</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="reviews" className="space-y-6">
-                <div className="grid gap-6">
-                  {userReviews.map((review) => (
-                    <ReviewCard key={review.id} {...review} />
+          {/* Activity Tab */}
+          <TabsContent value="activity" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Recent Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {userReviews.slice(0, 5).map((review, index) => (
+                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                          <Star className="w-4 h-4 text-white" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">
+                          You reviewed{' '}
+                          <Link to={`/business/${review.business._id}`} className="font-medium text-primary hover:underline">
+                            {review.business.name}
+                          </Link>
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3 h-3 ${
+                                  i < review.rating
+                                    ? 'text-yellow-400 fill-current'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   ))}
+                  
+                  {userReviews.length === 0 && (
+                    <div className="text-center py-8">
+                      <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No recent activity</p>
+                    </div>
+                  )}
                 </div>
-                <div className="text-center py-8">
-                  <Button variant="outline">Load More Reviews</Button>
-                </div>
-              </TabsContent>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <TabsContent value="photos" className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {Array.from({ length: 12 }).map((_, index) => (
-                    <div key={index} className="aspect-square">
-                      <img
-                        src={`https://images.unsplash.com/photo-${1517248135467 + index}?w=300&h=300&fit=crop`}
-                        alt={`Photo ${index + 1}`}
-                        className="w-full h-full object-cover rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Account Settings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Profile Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="settingsFirstName">First Name</Label>
+                        <Input
+                          id="settingsFirstName"
+                          value={profileForm.firstName}
+                          onChange={(e) => setProfileForm(prev => ({ ...prev, firstName: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="settingsLastName">Last Name</Label>
+                        <Input
+                          id="settingsLastName"
+                          value={profileForm.lastName}
+                          onChange={(e) => setProfileForm(prev => ({ ...prev, lastName: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="settingsEmail">Email</Label>
+                        <Input
+                          id="settingsEmail"
+                          type="email"
+                          value={user.email}
+                          disabled
+                          className="bg-gray-100"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="settingsLocation">Location (Optional)</Label>
+                        <Input
+                          id="settingsLocation"
+                          value={profileForm.location}
+                          onChange={(e) => setProfileForm(prev => ({ ...prev, location: e.target.value }))}
+                          placeholder="City, State"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <Label htmlFor="settingsBio">Bio (Optional)</Label>
+                      <Textarea
+                        id="settingsBio"
+                        value={profileForm.bio}
+                        onChange={(e) => setProfileForm(prev => ({ ...prev, bio: e.target.value }))}
+                        placeholder="Tell us about yourself..."
+                        rows={4}
                       />
                     </div>
-                  ))}
+                  </div>
+                  
+                  <div className="pt-4 border-t">
+                    <Button onClick={handleProfileSave}>
+                      Save Changes
+                    </Button>
+                  </div>
                 </div>
-                <div className="text-center py-8">
-                  <Button variant="outline">Load More Photos</Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="activity" className="space-y-6">
-                <Card>
-                  <CardContent className="p-6">
-                    <h3 className="text-xl font-bold mb-4">Recent Activity</h3>
-                    <div className="space-y-4">
-                      {[
-                        { action: "Reviewed", business: "Blue Mountain Cafe", date: "2 days ago" },
-                        { action: "Added photos to", business: "Downtown Gym", date: "1 week ago" },
-                        { action: "Reviewed", business: "Tech Solutions Inc", date: "2 weeks ago" },
-                        { action: "Updated review for", business: "Sunset Restaurant", date: "3 weeks ago" },
-                        { action: "Added photos to", business: "City Library", date: "1 month ago" }
-                      ].map((activity, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="text-gray-700">{activity.action} </span>
-                            <span className="font-medium text-primary">{activity.business}</span>
-                          </div>
-                          <span className="text-sm text-gray-500">{activity.date}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

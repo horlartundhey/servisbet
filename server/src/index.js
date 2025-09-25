@@ -3,8 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./middlewares/errorHandler');
 const connectDB = require('./config/db');
+const responseSchedulerService = require('./services/responseSchedulerService');
 
 const app = express();
+
+// Initialize scheduler service
+responseSchedulerService.initialize();
 
 // CORS Configuration
 const corsOptions = {
@@ -37,12 +41,18 @@ app.use(async (req, res, next) => {
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/business', require('./routes/business'));
+app.use('/api/business', require('./routes/businessVerification'));
 app.use('/api/business-profile', require('./routes/businessProfile'));
 app.use('/api/review', require('./routes/review'));
+app.use('/api/disputes', require('./routes/dispute'));
+app.use('/api/templates', require('./routes/template'));
+app.use('/api/bulk-response', require('./routes/bulkResponse'));
 app.use('/api/subscription', require('./routes/subscription'));
 app.use('/api/flag', require('./routes/flag'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/upload', require('./routes/businessImageUpload')); // Business image management
+app.use('/api/analytics', require('./routes/analytics'));
 
 // Health check route
 app.get('/', (req, res) => {

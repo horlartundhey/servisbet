@@ -4,16 +4,21 @@ import { Link, useNavigate } from 'react-router-dom';
 import servlogo from '../assets/images/servisbeta-logo.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, User, Menu, LogOut, Settings, UserCircle } from 'lucide-react';
+import { Search, User, Menu, LogOut, Settings, UserCircle, Bell } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotificationCenter } from '../contexts/NotificationCenterContext';
+import NotificationCenter from './NotificationCenter';
 
 const Header = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationCenter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +37,18 @@ const Header = () => {
     const firstName = user.firstName || '';
     const lastName = user.lastName || '';
     return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || 'U';
+  };
+
+  const handleNotificationClick = (notification: any) => {
+    // Handle notification click - navigate to relevant page
+    if (notification.actionUrl) {
+      navigate(notification.actionUrl);
+    } else if (notification.type === 'review' && notification.businessId) {
+      navigate(`/business/${notification.businessId}`);
+    } else if (notification.type === 'response' && notification.metadata?.reviewId) {
+      navigate(`/profile`); // Navigate to user's reviews
+    }
+    setShowNotifications(false);
   };
 
   const getUserDashboardLink = () => {
@@ -73,6 +90,9 @@ const Header = () => {
 
           {/* Navigation */}
           <nav className="hidden lg:flex items-center space-x-6">
+            <Link to="/businesses" className="text-foreground hover:text-primary transition-colors">
+              All Businesses
+            </Link>
             <Link to="/search" className="text-foreground hover:text-primary transition-colors">
               Browse
             </Link>
@@ -84,6 +104,11 @@ const Header = () => {
                 For Business
               </Link>
             ) : null}
+            {user?.role === 'business' && (
+              <Link to="/analytics" className="text-foreground hover:text-primary transition-colors">
+                Analytics
+              </Link>
+            )}
             {user?.role === 'admin' && (
               <Link to="/admin" className="text-foreground hover:text-primary transition-colors">
                 Admin
@@ -94,8 +119,12 @@ const Header = () => {
           {/* Auth Section */}
           <div className="flex items-center space-x-3">
             {isAuthenticated && user ? (
-              // Authenticated User Menu
-              <DropdownMenu>
+              <>
+                {/* Real-time Notification Center */}
+                <NotificationCenter />
+
+                {/* Authenticated User Menu */}
+                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
@@ -141,6 +170,7 @@ const Header = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </>
             ) : (
               // Guest User Buttons
               <>
@@ -174,6 +204,16 @@ const Header = () => {
           </form>
         </div>
       </div>
+
+      {/* NotificationCenter */}
+      <NotificationCenter
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        notifications={notifications}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onNotificationClick={handleNotificationClick}
+      />
     </header>
   );
 };

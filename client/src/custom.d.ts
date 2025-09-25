@@ -12,6 +12,8 @@ interface ImportMetaEnv {
   readonly VITE_APP_ENVIRONMENT: string;
   readonly VITE_ENABLE_ANALYTICS: string;
   readonly VITE_ENABLE_ERROR_REPORTING: string;
+  readonly MODE: string;
+  readonly DEV: boolean;
 }
 
 interface ImportMeta {
