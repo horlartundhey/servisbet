@@ -12,12 +12,15 @@ responseSchedulerService.initialize();
 
 // CORS Configuration
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGINS ? 
-    process.env.ALLOWED_ORIGINS.split(',') : 
-    ['http://localhost:3000', 'http://localhost:5173'],
+  origin: [
+    'http://localhost:5173',  // Local development
+    'http://localhost:3000',  // Alternative local port
+    'https://servisbet-client.vercel.app',  // Your client domain
+    'https://servisbet-git-main-horlartundheys-projects.vercel.app'  // Your server domain (for testing)
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
 // Middleware
