@@ -7,8 +7,10 @@ const responseSchedulerService = require('./services/responseSchedulerService');
 
 const app = express();
 
-// Initialize scheduler service
-responseSchedulerService.initialize();
+// Initialize scheduler service (only in non-serverless environments)
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
+  responseSchedulerService.initialize();
+}
 
 // CORS Configuration
 const corsOptions = {
@@ -30,12 +32,6 @@ app.use(cors(corsOptions));
 
 // Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
-
-// Debug middleware (temporary)
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
-  next();
-});
 
 app.use(express.json({ 
   limit: process.env.MAX_FILE_SIZE ? `${process.env.MAX_FILE_SIZE / (1024 * 1024)}mb` : '10mb' 
