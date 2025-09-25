@@ -3,14 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./middlewares/errorHandler');
 const connectDB = require('./config/db');
-const responseSchedulerService = require('./services/responseSchedulerService');
+// const responseSchedulerService = require('./services/responseSchedulerService');
 
 const app = express();
 
-// Initialize scheduler service (only in non-serverless environments)
-if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
-  responseSchedulerService.initialize();
-}
+// Scheduler service disabled for serverless deployment
+// Only needed for advanced automated response scheduling features
 
 // CORS Configuration
 const corsOptions = {
@@ -57,7 +55,7 @@ app.use('/api/business-profile', require('./routes/businessProfile'));
 app.use('/api/review', require('./routes/review'));
 app.use('/api/disputes', require('./routes/dispute'));
 app.use('/api/templates', require('./routes/template'));
-app.use('/api/bulk-response', require('./routes/bulkResponse'));
+// app.use('/api/bulk-response', require('./routes/bulkResponse')); // Disabled for serverless - uses scheduler
 app.use('/api/subscription', require('./routes/subscription'));
 app.use('/api/flag', require('./routes/flag'));
 app.use('/api/admin', require('./routes/admin'));
