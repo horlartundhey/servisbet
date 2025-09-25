@@ -16,15 +16,27 @@ const corsOptions = {
     'http://localhost:5173',  // Local development
     'http://localhost:3000',  // Alternative local port
     'https://servisbet-client.vercel.app',  // Your client domain
+    'https://servisbet-client-git-main-horlartundheys-projects.vercel.app',  // New client domain
     'https://servisbet-git-main-horlartundheys-projects.vercel.app'  // Your server domain (for testing)
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 200 // For legacy browser support
 };
 
 // Middleware
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+// Debug middleware (temporary)
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
+
 app.use(express.json({ 
   limit: process.env.MAX_FILE_SIZE ? `${process.env.MAX_FILE_SIZE / (1024 * 1024)}mb` : '10mb' 
 }));
