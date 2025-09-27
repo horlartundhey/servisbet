@@ -21,8 +21,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Handle preflight requests explicitly - This might be the issue!
-app.options('*', cors(corsOptions));
+// REMOVED: app.options('*', cors(corsOptions)); - This was causing the error!
 
 app.use(express.json({ 
   limit: process.env.MAX_FILE_SIZE ? `${process.env.MAX_FILE_SIZE / (1024 * 1024)}mb` : '10mb' 
@@ -63,8 +62,10 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Server Running - Testing Advanced Middleware',
-    timestamp: new Date().toISOString()
+    message: 'ServisbetA API Server Running - FIXED!',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
