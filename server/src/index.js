@@ -20,7 +20,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+
+// Handle preflight requests explicitly - This might be the issue!
+app.options('*', cors(corsOptions));
+
+app.use(express.json({ 
+  limit: process.env.MAX_FILE_SIZE ? `${process.env.MAX_FILE_SIZE / (1024 * 1024)}mb` : '10mb' 
+}));
+app.use(express.urlencoded({ extended: true }));
 
 // Testing: Add database connection middleware
 app.use(async (req, res, next) => {
@@ -56,7 +63,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Server Running - Testing Error Handler Middleware',
+    message: 'Server Running - Testing Advanced Middleware',
     timestamp: new Date().toISOString()
   });
 });
