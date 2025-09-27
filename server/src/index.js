@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
 
@@ -55,7 +56,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Server Running - Testing Database Middleware',
+    message: 'Server Running - Testing Error Handler Middleware',
     timestamp: new Date().toISOString()
   });
 });
@@ -63,8 +64,11 @@ app.get('/', (req, res) => {
 app.get('/api', (req, res) => {
   res.json({
     success: true,
-    message: 'API Test Endpoint - Auth Routes Added'
+    message: 'API Test Endpoint - Testing Error Handler'
   });
 });
+
+// Testing: Add error handler middleware (must be last)
+app.use(errorHandler);
 
 module.exports = app;
