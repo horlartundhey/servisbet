@@ -23,14 +23,18 @@ app.use(express.json());
 // Add routes one by one to find the problematic one
 // ✅ Auth routes work
 app.use('/api/auth', require('./routes/auth'));
-// Testing business routes
+// ✅ Business routes work
 app.use('/api/business', require('./routes/business'));
+// Testing next batch
+app.use('/api/business', require('./routes/businessVerification'));
+app.use('/api/business-profile', require('./routes/businessProfile'));
+app.use('/api/review', require('./routes/review'));
 
 // Basic health check
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Server Running - Testing Business Routes',
+    message: 'Server Running - Testing Review + Profile Routes',
     timestamp: new Date().toISOString()
   });
 });
