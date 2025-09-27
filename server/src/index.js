@@ -20,18 +20,23 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Basic health check only
+// Add routes one by one to find the problematic one
+// Starting with auth routes
+app.use('/api/auth', require('./routes/auth'));
+
+// Basic health check
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Test Server Running - Path-to-RegExp Debug'
+    message: 'Server Running - Testing Auth Routes',
+    timestamp: new Date().toISOString()
   });
 });
 
 app.get('/api', (req, res) => {
   res.json({
     success: true,
-    message: 'API Test Endpoint'
+    message: 'API Test Endpoint - Auth Routes Added'
   });
 });
 
