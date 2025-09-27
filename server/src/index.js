@@ -1,6 +1,7 @@
-// Minimal test version to isolate the path-to-regexp error
+// Testing middleware - all routes work, issue is in middleware
 const express = require('express');
 const cors = require('cors');
+const connectDB = require('./config/db');
 
 const app = express();
 
@@ -19,6 +20,17 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Testing: Add database connection middleware
+app.use(async (req, res, next) => {
+  try {
+    await connectDB(); // This might be causing the issue
+    next();
+  } catch (error) {
+    console.error('Database middleware error:', error);
+    res.status(500).json({ success: false, message: 'Database connection error' });
+  }
+});
 
 // Add routes one by one to find the problematic one
 // ✅ Auth routes work
@@ -43,7 +55,7 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Server Running - Testing ALL Routes',
+    message: 'Server Running - Testing Database Middleware',
     timestamp: new Date().toISOString()
   });
 });
