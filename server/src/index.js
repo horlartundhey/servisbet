@@ -25,16 +25,25 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 // ✅ Business routes work
 app.use('/api/business', require('./routes/business'));
-// Testing next batch
+// ✅ Business verification, profile, review work
 app.use('/api/business', require('./routes/businessVerification'));
 app.use('/api/business-profile', require('./routes/businessProfile'));
 app.use('/api/review', require('./routes/review'));
+// Testing remaining routes
+app.use('/api/disputes', require('./routes/dispute'));
+app.use('/api/templates', require('./routes/template'));
+app.use('/api/subscription', require('./routes/subscription'));
+app.use('/api/flag', require('./routes/flag'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/upload', require('./routes/upload'));
+app.use('/api/upload', require('./routes/businessImageUpload'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 // Basic health check
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Server Running - Testing Review + Profile Routes',
+    message: 'Server Running - Testing ALL Routes',
     timestamp: new Date().toISOString()
   });
 });
