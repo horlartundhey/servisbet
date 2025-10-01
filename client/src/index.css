@@ -3,6 +3,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* iOS Safari Critical Fixes */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-backface-visibility: hidden;
+}
+
+/* iOS Safari viewport and memory fixes */
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%; /* Prevent iOS text size adjustment */
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  height: 100%;
+  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden; /* Prevent horizontal scroll issues on iOS */
+}
+
+/* Prevent zoom on inputs for iOS */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+  font-size: 16px !important; /* Critical: Prevents zoom on iOS */
+  -webkit-appearance: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Fix iOS button styling */
+button {
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ServisbetA design system with brand colors */
 
 @layer base {

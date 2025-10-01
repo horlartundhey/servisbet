@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   build: {
+    target: ['es2015', 'safari11'], // iOS Safari compatibility
     outDir: 'dist',
     sourcemap: false,
     rollupOptions: {
@@ -23,6 +24,9 @@ export default defineConfig({
         }
       }
     }
+  },
+  define: {
+    global: 'globalThis', // iOS Safari global variable fix
   },
   server: {
     port: 5173,
