@@ -15,12 +15,31 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
+    <!-- iOS Safari Critical Resource Preloading -->
+    <link rel="preload" as="script" href="/src/main.tsx" crossorigin />
+    <link rel="preload" as="style" href="/src/index.css" />
+    
     <!-- iOS Safari Memory Management -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <!-- iOS Safari Resource Hints -->
+    <link rel="dns-prefetch" href="//servisbeta-server.vercel.app" />
+    <link rel="preconnect" href="https://servisbeta-server.vercel.app" crossorigin />
     
     <title>ServisbetA - Business Review Platform</title>
+    
+    <!-- iOS Safari Cache Busting Script -->
+    <script>
+      // Force cache invalidation for iOS Safari
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        const timestamp = Date.now();
+        window.__IOS_CACHE_BUST__ = timestamp;
+        console.log('iOS Safari detected - Cache bust:', timestamp);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

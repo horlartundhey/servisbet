@@ -15,8 +15,13 @@ export default defineConfig({
     target: ['es2015', 'safari11'], // iOS Safari compatibility
     outDir: 'dist',
     sourcemap: false,
+    assetsDir: 'assets',
     rollupOptions: {
       output: {
+        // iOS Safari cache busting - force new hashes
+        entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`,
         manualChunks: {
           react: ['react', 'react-dom'],
           router: ['react-router-dom'],
