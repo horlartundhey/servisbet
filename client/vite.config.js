@@ -18,10 +18,19 @@ export default defineConfig({
     assetsDir: 'assets',
     rollupOptions: {
       output: {
-        // iOS Safari cache busting - force new hashes
-        entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-        chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-        assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`,
+        // iOS Safari cache busting - use dynamic hash generation
+        entryFileNames: () => {
+          const timestamp = Date.now();
+          return `assets/[name]-[hash]-${timestamp}.js`;
+        },
+        chunkFileNames: () => {
+          const timestamp = Date.now();
+          return `assets/[name]-[hash]-${timestamp}.js`;
+        },
+        assetFileNames: () => {
+          const timestamp = Date.now();
+          return `assets/[name]-[hash]-${timestamp}.[ext]`;
+        },
         manualChunks: {
           react: ['react', 'react-dom'],
           router: ['react-router-dom'],
