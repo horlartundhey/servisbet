@@ -3,9 +3,22 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { fileURLToPath, URL } from 'node:url'
 
+// Plugin to add build timestamp for iOS Safari cache busting
+const buildTimestampPlugin = () => ({
+  name: 'build-timestamp',
+  generateBundle() {
+    const timestamp = Date.now()
+    this.emitFile({
+      type: 'asset',
+      fileName: 'build-info.json',
+      source: JSON.stringify({ buildTime: timestamp }, null, 2)
+    })
+  }
+})
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), buildTimestampPlugin()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL('./src', import.meta.url)),
@@ -18,19 +31,10 @@ export default defineConfig({
     assetsDir: 'assets',
     rollupOptions: {
       output: {
-        // iOS Safari cache busting - use dynamic hash generation
-        entryFileNames: () => {
-          const timestamp = Date.now();
-          return `assets/[name]-[hash]-${timestamp}.js`;
-        },
-        chunkFileNames: () => {
-          const timestamp = Date.now();
-          return `assets/[name]-[hash]-${timestamp}.js`;
-        },
-        assetFileNames: () => {
-          const timestamp = Date.now();
-          return `assets/[name]-[hash]-${timestamp}.[ext]`;
-        },
+        // iOS Safari cache busting - use hash-based naming
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks: {
           react: ['react', 'react-dom'],
           router: ['react-router-dom'],
