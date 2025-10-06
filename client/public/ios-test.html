@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>iOS Diagnostic Test - ServisbetA</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .status-item:last-child { border-bottom: none; }
+        .label { font-weight: 600; }
+        .value { 
+            opacity: 0.9;
+            word-break: break-all;
+            max-width: 60%;
+            text-align: right;
+        }
+        .success { color: #4ade80; }
+        .error { color: #fb7185; }
+        .warning { color: #fbbf24; }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            background: white;
+            color: #667eea;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:active { transform: scale(0.98); }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 iOS Diagnostic Test</h1>
+        
+        <div class="status">
+            <div class="status-item">
+                <span class="label">Device:</span>
+                <span class="value" id="device">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Browser:</span>
+                <span class="value" id="browser">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">iOS Version:</span>
+                <span class="value" id="iosVersion">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Screen Size:</span>
+                <span class="value" id="screen">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Network:</span>
+                <span class="value" id="network">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Cache Status:</span>
+                <span class="value" id="cache">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">localStorage:</span>
+                <span class="value" id="storage">-</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Service Worker:</span>
+                <span class="value" id="sw">-</span>
+            </div>
+        </div>
+
+        <button onclick="testMainApp()">🚀 Test Main App</button>
+        <button onclick="testAPI()">🌐 Test API Connection</button>
+        <button onclick="clearAllCache()">🧹 Clear All Cache</button>
+        <button onclick="location.reload()">🔄 Reload Page</button>
+
+        <div class="log" id="log">
+            <div class="log-entry">Diagnostic log will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        const log = (message, type = 'info') => {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `[${timestamp}] ${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'} ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        };
+
+        // Detect device info
+        const detectDevice = () => {
+            const ua = navigator.userAgent;
+            const isIOS = /iPad|iPhone|iPod/.test(ua);
+            const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+            
+            document.getElementById('device').textContent = isIOS ? 
+                (ua.includes('iPad') ? 'iPad' : ua.includes('iPhone') ? 'iPhone' : 'iPod') : 
+                'Not iOS';
+            document.getElementById('device').className = isIOS ? 'value success' : 'value error';
+            
+            document.getElementById('browser').textContent = isSafari ? 'Safari' : 
+                (ua.includes('Chrome') ? 'Chrome' : 
+                (ua.includes('Firefox') ? 'Firefox' : 'Other'));
+            
+            // iOS version
+            const match = ua.match(/OS (\d+)_(\d+)_?(\d+)?/);
+            if (match) {
+                document.getElementById('iosVersion').textContent = `${match[1]}.${match[2]}${match[3] ? '.' + match[3] : ''}`;
+            } else {
+                document.getElementById('iosVersion').textContent = 'N/A';
+            }
+            
+            document.getElementById('screen').textContent = `${window.screen.width}x${window.screen.height}`;
+            
+            // Network status
+            if (navigator.onLine) {
+                document.getElementById('network').textContent = 'Online';
+                document.getElementById('network').className = 'value success';
+            } else {
+                document.getElementById('network').textContent = 'Offline';
+                document.getElementById('network').className = 'value error';
+            }
+            
+            // Cache status
+            const cacheHeader = performance.getEntriesByType('navigation')[0];
+            if (cacheHeader && cacheHeader.transferSize === 0) {
+                document.getElementById('cache').textContent = 'From Cache';
+                document.getElementById('cache').className = 'value warning';
+            } else {
+                document.getElementById('cache').textContent = 'Fresh Load';
+                document.getElementById('cache').className = 'value success';
+            }
+            
+            // localStorage
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                document.getElementById('storage').textContent = 'Available';
+                document.getElementById('storage').className = 'value success';
+            } catch (e) {
+                document.getElementById('storage').textContent = 'Blocked';
+                document.getElementById('storage').className = 'value error';
+            }
+            
+            // Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(regs => {
+                    document.getElementById('sw').textContent = regs.length > 0 ? 
+                        `Active (${regs.length})` : 'Not Registered';
+                    document.getElementById('sw').className = regs.length > 0 ? 
+                        'value warning' : 'value success';
+                });
+            } else {
+                document.getElementById('sw').textContent = 'Not Supported';
+                document.getElementById('sw').className = 'value error';
+            }
+            
+            log('Device detection complete');
+            log(`User Agent: ${ua}`);
+        };
+
+        // Test main app
+        const testMainApp = () => {
+            log('Testing main app...', 'info');
+            fetch('/')
+                .then(res => {
+                    log(`Main app responded: ${res.status} ${res.statusText}`, 'success');
+                    log(`Content-Type: ${res.headers.get('content-type')}`);
+                    log(`Cache-Control: ${res.headers.get('cache-control')}`);
+                    return res.text();
+                })
+                .then(html => {
+                    if (html.includes('root')) {
+                        log('Main app HTML contains root element ✓', 'success');
+                        // Try to open main app
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1000);
+                    } else {
+                        log('Main app HTML missing root element ✗', 'error');
+                    }
+                })
+                .catch(err => {
+                    log(`Main app error: ${err.message}`, 'error');
+                });
+        };
+
+        // Test API
+        const testAPI = () => {
+            log('Testing API connection...', 'info');
+            const apiUrl = 'https://servisbeta-server.vercel.app/api/health';
+            fetch(apiUrl)
+                .then(res => {
+                    log(`API responded: ${res.status} ${res.statusText}`, 'success');
+                    return res.json();
+                })
+                .then(data => {
+                    log(`API data: ${JSON.stringify(data)}`, 'success');
+                })
+                .catch(err => {
+                    log(`API error: ${err.message}`, 'error');
+                });
+        };
+
+        // Clear all cache
+        const clearAllCache = async () => {
+            log('Clearing all cache...', 'info');
+            
+            try {
+                // Clear localStorage
+                localStorage.clear();
+                log('localStorage cleared ✓', 'success');
+            } catch (e) {
+                log('localStorage clear failed', 'error');
+            }
+            
+            try {
+                // Clear sessionStorage
+                sessionStorage.clear();
+                log('sessionStorage cleared ✓', 'success');
+            } catch (e) {
+                log('sessionStorage clear failed', 'error');
+            }
+            
+            // Unregister service workers
+            if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (let reg of regs) {
+                    await reg.unregister();
+                    log('Service worker unregistered ✓', 'success');
+                }
+            }
+            
+            // Clear cache storage
+            if ('caches' in window) {
+                const names = await caches.keys();
+                for (let name of names) {
+                    await caches.delete(name);
+                    log(`Cache '${name}' deleted ✓`, 'success');
+                }
+            }
+            
+            log('All cache cleared! Reloading...', 'success');
+            setTimeout(() => {
+                window.location.href = '/?_cleared=' + Date.now();
+            }, 2000);
+        };
+
+        // Run detection on load
+        window.addEventListener('load', detectDevice);
+        detectDevice();
+    </script>
+</body>
+</html>
