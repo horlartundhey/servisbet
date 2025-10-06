@@ -122,7 +122,9 @@
 
         <button onclick="testMainApp()">🚀 Test Main App</button>
         <button onclick="testAPI()">🌐 Test API Connection</button>
+        <button onclick="testNetwork()">📡 Test Network Details</button>
         <button onclick="clearAllCache()">🧹 Clear All Cache</button>
+        <button onclick="copyLogs()">📋 Copy All Logs</button>
         <button onclick="location.reload()">🔄 Reload Page</button>
 
         <div class="log" id="log">
@@ -217,44 +219,307 @@
         // Test main app
         const testMainApp = () => {
             log('Testing main app...', 'info');
-            fetch('/')
+            log('Main app URL: https://servisbet-client.vercel.app/', 'info');
+            
+            fetch('/', {
+                method: 'GET',
+                cache: 'no-cache',
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml'
+                }
+            })
                 .then(res => {
-                    log(`Main app responded: ${res.status} ${res.statusText}`, 'success');
+                    log(`Main app responded: ${res.status} ${res.statusText}`, res.ok ? 'success' : 'error');
                     log(`Content-Type: ${res.headers.get('content-type')}`);
                     log(`Cache-Control: ${res.headers.get('cache-control')}`);
+                    log(`URL: ${res.url}`);
+                    log(`Redirected: ${res.redirected}`);
+                    
+                    // Log all headers
+                    console.log('=== MAIN APP RESPONSE HEADERS ===');
+                    res.headers.forEach((value, key) => {
+                        console.log(`${key}: ${value}`);
+                        log(`Header ${key}: ${value}`);
+                    });
+                    
                     return res.text();
                 })
                 .then(html => {
+                    console.log('=== MAIN APP HTML CONTENT ===');
+                    console.log(html.substring(0, 500)); // First 500 chars
+                    
                     if (html.includes('root')) {
                         log('Main app HTML contains root element ✓', 'success');
+                        log(`HTML size: ${html.length} characters`, 'info');
+                        
+                        // Check for script tags
+                        const scriptMatches = html.match(/<script[^>]*src="([^"]+)"/g);
+                        if (scriptMatches) {
+                            log(`Found ${scriptMatches.length} script tags`, 'success');
+                            scriptMatches.forEach(script => {
+                                console.log('Script:', script);
+                                log(`Script: ${script}`);
+                            });
+                        } else {
+                            log('No script tags found ✗', 'error');
+                        }
+                        
                         // Try to open main app
                         setTimeout(() => {
+                            log('Redirecting to main app...', 'info');
                             window.location.href = '/';
-                        }, 1000);
+                        }, 2000);
                     } else {
                         log('Main app HTML missing root element ✗', 'error');
+                        console.log('HTML content:', html);
                     }
                 })
                 .catch(err => {
                     log(`Main app error: ${err.message}`, 'error');
+                    console.error('=== MAIN APP ERROR ===');
+                    console.error(err);
+                    log(`Error stack: ${err.stack}`);
+                });
+        };              log(`${key}: ${value}`);
+                    }
+                    log('--- End Headers ---');
+                    
+                    return res.text();
+                })
+                .then(html => {
+                    log(`HTML Length: ${html.length} bytes`);
+                    log(`Contains 'root': ${html.includes('root')}`);
+                    log(`Contains 'script': ${html.includes('script')}`);
+                    log(`Contains 'vite': ${html.includes('vite')}`);
+                    
+                    if (html.includes('root')) {
+                        log('Main app HTML contains root element ✓', 'success');
+                        log('HTML Preview (first 500 chars):', 'info');
+                        log(html.substring(0, 500));
+                        
+                        // Check for script tags
+                        const scriptMatches = html.match(/<script[^>]*src="([^"]*)"[^>]*>/g);
+                        if (scriptMatches) {
+                            log(`Found ${scriptMatches.length} script tags:`, 'info');
+                            scriptMatches.forEach((match, i) => {
+                                log(`Script ${i + 1}: ${match}`);
+                            });
+                        } else {
+                            log('No script tags found ✗', 'error');
+                        }
+                        
+                        // Try to open main app
+                        log('Redirecting to main app in 3 seconds...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 3000);
+                    } else {
+                        log('Main app HTML missing root element ✗', 'error');
+                        log('HTML content:', 'error');
+                        log(html.substring(0, 1000));
+                    }
+                })
+                .catch(err => {
+                    log(`Main app error: ${err.message}`, 'error');
+                    log(`Error name: ${err.name}`, 'error');
+                    log(`Error stack: ${err.stack}`, 'error');
                 });
         };
 
         // Test API
         const testAPI = () => {
-            log('Testing API connection...', 'info');
+            log('=== TESTING API CONNECTION ===', 'info');
+            log('Server URL: https://servisbeta-server.vercel.app/', 'info');
+            
             const apiUrl = 'https://servisbeta-server.vercel.app/api/health';
-            fetch(apiUrl)
+            log(`Testing endpoint: ${apiUrl}`, 'info');
+            
+            console.log('=== API TEST START ===');
+            console.log('URL:', apiUrl);
+            console.log('Time:', new Date().toISOString());
+            
+            const startTime = Date.now();
+            
+            fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                mode: 'cors',
+                credentials: 'omit',
+                cache: 'no-cache'
+            })
                 .then(res => {
-                    log(`API responded: ${res.status} ${res.statusText}`, 'success');
+                    const duration = Date.now() - startTime;
+                    
+                    console.log('=== API RESPONSE RECEIVED ===');
+                    console.log('Duration:', duration + 'ms');
+                    console.log('Status:', res.status, res.statusText);
+                    console.log('OK:', res.ok);
+                    console.log('Type:', res.type);
+                    console.log('URL:', res.url);
+                    console.log('Redirected:', res.redirected);
+                    
+                    log(`⏱️ API responded in ${duration}ms`, 'info');
+                    log(`📡 Status: ${res.status} ${res.statusText}`, res.ok ? 'success' : 'error');
+                    log(`🔗 Response URL: ${res.url}`);
+                    log(`📋 Response Type: ${res.type}`);
+                    log(`✓ Response OK: ${res.ok}`);
+                    log(`↪️ Redirected: ${res.redirected}`);
+                    
+                    // Log all response headers
+                    log('--- API Response Headers ---', 'info');
+                    console.log('=== API RESPONSE HEADERS ===');
+                    for (let [key, value] of res.headers.entries()) {
+                        console.log(`${key}: ${value}`);
+                        log(`  ${key}: ${value}`);
+                    }
+                    log('--- End Headers ---', 'info');
+                    
+                    if (!res.ok) {
+                        log(`❌ HTTP Error: ${res.status}`, 'error');
+                        return res.text().then(text => {
+                            console.error('=== API ERROR BODY ===');
+                            console.error(text);
+                            log(`Error body: ${text}`, 'error');
+                            throw new Error(`HTTP ${res.status}: ${text}`);
+                        });
+                    }
+                    
+                    return res.text().then(text => {
+                        console.log('=== API RESPONSE BODY (RAW) ===');
+                        console.log(text);
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            console.error('JSON Parse Error:', e);
+                            log(`Failed to parse JSON: ${e.message}`, 'error');
+                            throw e;
+                        }
+                    });
+                })
+                .then(data => {
+                    console.log('=== API DATA (PARSED) ===');
+                    console.log(data);
+                    log(`✅ API data received:`, 'success');
+                    log(JSON.stringify(data, null, 2), 'success');
+                    
+                    // Test additional endpoints
+                    log('Testing businesses endpoint...', 'info');
+                    return fetch('https://servisbeta-server.vercel.app/api/businesses?limit=1', {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                })
+                .then(res => {
+                    log(`Businesses endpoint: ${res.status} ${res.statusText}`, res.ok ? 'success' : 'warning');
                     return res.json();
                 })
                 .then(data => {
-                    log(`API data: ${JSON.stringify(data)}`, 'success');
+                    log(`Businesses data:`, 'success');
+                    log(JSON.stringify(data, null, 2));
                 })
                 .catch(err => {
                     log(`API error: ${err.message}`, 'error');
+                    log(`Error name: ${err.name}`, 'error');
+                    log(`Error stack: ${err.stack}`, 'error');
+                    
+                    // Additional network diagnostics
+                    if (err.message.includes('Failed to fetch')) {
+                        log('Possible CORS or network issue', 'error');
+                        log('Check: 1) Server CORS config 2) Network connectivity 3) Firewall', 'error');
+                    }
                 });
+        };
+
+        // Test network details
+        const testNetwork = async () => {
+            log('=== Network Diagnostics ===', 'info');
+            
+            // Connection info
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            if (conn) {
+                log(`Network Type: ${conn.effectiveType || conn.type}`, 'info');
+                log(`Downlink: ${conn.downlink} Mbps`, 'info');
+                log(`RTT: ${conn.rtt} ms`, 'info');
+                log(`Save Data: ${conn.saveData}`, 'info');
+            } else {
+                log('Connection API not available', 'warning');
+            }
+            
+            // DNS resolution test
+            log('Testing DNS resolution...', 'info');
+            const dnsTests = [
+                'https://servisbet-client.vercel.app',
+                'https://servisbeta-server.vercel.app',
+                'https://www.google.com',
+            ];
+            
+            for (const url of dnsTests) {
+                const start = Date.now();
+                try {
+                    const res = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+                    const duration = Date.now() - start;
+                    log(`${url}: ${duration}ms`, 'success');
+                } catch (err) {
+                    log(`${url}: FAILED - ${err.message}`, 'error');
+                }
+            }
+            
+            // Memory info
+            if (performance.memory) {
+                log('=== Memory Info ===', 'info');
+                log(`Used: ${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB`);
+                log(`Total: ${(performance.memory.totalJSHeapSize / 1048576).toFixed(2)} MB`);
+                log(`Limit: ${(performance.memory.jsHeapSizeLimit / 1048576).toFixed(2)} MB`);
+            }
+            
+            // Timing info
+            const perfData = performance.getEntriesByType('navigation')[0];
+            if (perfData) {
+                log('=== Page Load Timing ===', 'info');
+                log(`DNS Lookup: ${(perfData.domainLookupEnd - perfData.domainLookupStart).toFixed(2)}ms`);
+                log(`TCP Connect: ${(perfData.connectEnd - perfData.connectStart).toFixed(2)}ms`);
+                log(`Request: ${(perfData.responseStart - perfData.requestStart).toFixed(2)}ms`);
+                log(`Response: ${(perfData.responseEnd - perfData.responseStart).toFixed(2)}ms`);
+                log(`DOM Processing: ${(perfData.domComplete - perfData.domLoading).toFixed(2)}ms`);
+                log(`Total Load: ${(perfData.loadEventEnd - perfData.fetchStart).toFixed(2)}ms`);
+            }
+            
+            // Check cookies
+            log('=== Cookie Status ===', 'info');
+            log(`Cookies Enabled: ${navigator.cookieEnabled}`);
+            log(`Cookies: ${document.cookie || 'None'}`);
+            
+            // Check security context
+            log('=== Security Context ===', 'info');
+            log(`HTTPS: ${location.protocol === 'https:'}`);
+            log(`Secure Context: ${window.isSecureContext}`);
+            
+            log('Network diagnostics complete!', 'success');
+        };
+
+        // Copy logs to clipboard
+        const copyLogs = () => {
+            const logEl = document.getElementById('log');
+            const logText = logEl.innerText;
+            
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(logText)
+                    .then(() => {
+                        log('Logs copied to clipboard ✓', 'success');
+                        alert('Logs copied! You can paste them now.');
+                    })
+                    .catch(err => {
+                        log('Failed to copy logs', 'error');
+                        // Fallback: show in alert
+                        alert(logText);
+                    });
+            } else {
+                // Fallback: show in alert
+                alert(logText);
+            }
         };
 
         // Clear all cache
@@ -301,9 +566,40 @@
             }, 2000);
         };
 
+        // Log initial environment info
+        const logInitialInfo = () => {
+            log('=== ServisbetA iOS Diagnostic Started ===', 'info');
+            log(`Timestamp: ${new Date().toISOString()}`);
+            log(`Client URL: https://servisbet-client.vercel.app/`, 'info');
+            log(`Server URL: https://servisbeta-server.vercel.app/`, 'info');
+            log(`Current URL: ${window.location.href}`, 'info');
+            log(`User Agent: ${navigator.userAgent}`, 'info');
+            log(`Platform: ${navigator.platform}`, 'info');
+            log(`Language: ${navigator.language}`, 'info');
+            log(`Languages: ${navigator.languages.join(', ')}`, 'info');
+            log(`Online: ${navigator.onLine}`, 'info');
+            log(`Hardware Concurrency: ${navigator.hardwareConcurrency || 'N/A'}`, 'info');
+            log(`Device Memory: ${navigator.deviceMemory || 'N/A'} GB`, 'info');
+            log(`Max Touch Points: ${navigator.maxTouchPoints || 'N/A'}`, 'info');
+            log(`Pixel Ratio: ${window.devicePixelRatio}`, 'info');
+            log(`Viewport: ${window.innerWidth}x${window.innerHeight}`, 'info');
+            log(`Screen: ${window.screen.width}x${window.screen.height}`, 'info');
+            log(`Color Depth: ${window.screen.colorDepth} bits`, 'info');
+            log(`Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`, 'info');
+            log('=================================', 'info');
+        };
+
         // Run detection on load
-        window.addEventListener('load', detectDevice);
-        detectDevice();
+        window.addEventListener('load', () => {
+            logInitialInfo();
+            detectDevice();
+        });
+        
+        // Also run immediately in case load event already fired
+        if (document.readyState === 'complete') {
+            logInitialInfo();
+            detectDevice();
+        }
     </script>
 </body>
 </html>

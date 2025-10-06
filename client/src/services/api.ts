@@ -1,12 +1,22 @@
 import axios from 'axios';
 
-// API Configuration
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:5000/api';
+// API Configuration with production fallback
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 
+  (import.meta.env.PROD 
+    ? 'https://servisbeta-server.vercel.app/api' 
+    : 'http://localhost:5000/api');
 
-// Only log in development
+// Enhanced logging for debugging (especially iOS issues)
+console.log('=== ServisbetA API Configuration ===');
+console.log('API Base URL:', API_BASE_URL);
+console.log('Environment:', import.meta.env.MODE);
+console.log('Is Production:', import.meta.env.PROD);
+console.log('Client URL:', window.location.origin);
+console.log('User Agent:', navigator.userAgent);
+console.log('Platform:', navigator.platform);
+
 if (import.meta.env.DEV) {
-  console.log('API Base URL:', API_BASE_URL);
-  console.log('Environment variables:', {
+  console.log('Full environment variables:', {
     VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
     MODE: import.meta.env.MODE,
   });
