@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple iOS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #667eea;
+            color: white;
+        }
+        .box {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 10px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            background: white;
+            color: #667eea;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        #output {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Simple iOS Test</h1>
+    
+    <div class="box">
+        <h3>Status: <span id="status">LOADING...</span></h3>
+    </div>
+
+    <button onclick="testBasic()">1️⃣ Test Basic JavaScript</button>
+    <button onclick="testFetch()">2️⃣ Test Fetch API</button>
+    <button onclick="testMainApp()">3️⃣ Test Main App URL</button>
+    <button onclick="testServer()">4️⃣ Test Server API</button>
+    <button onclick="clearOutput()">🗑️ Clear Output</button>
+
+    <div id="output">Waiting for test...</div>
+
+    <script>
+        // Immediately set status to confirm JS is running
+        document.getElementById('status').textContent = 'JAVASCRIPT IS RUNNING ✓';
+        document.getElementById('status').style.color = '#4ade80';
+        
+        var output = document.getElementById('output');
+        
+        function log(msg) {
+            var time = new Date().toLocaleTimeString();
+            output.textContent += '[' + time + '] ' + msg + '\n';
+            output.scrollTop = output.scrollHeight;
+            console.log(msg);
+        }
+        
+        function clearOutput() {
+            output.textContent = 'Output cleared.\n';
+        }
+        
+        function testBasic() {
+            log('=== BASIC JAVASCRIPT TEST ===');
+            log('✓ JavaScript is working!');
+            log('User Agent: ' + navigator.userAgent);
+            log('Platform: ' + navigator.platform);
+            log('Language: ' + navigator.language);
+            log('Online: ' + navigator.onLine);
+            log('Screen: ' + window.screen.width + 'x' + window.screen.height);
+            log('Viewport: ' + window.innerWidth + 'x' + window.innerHeight);
+            log('Protocol: ' + location.protocol);
+            log('Host: ' + location.host);
+            log('Pathname: ' + location.pathname);
+            
+            // Check iOS
+            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            log('Is iOS: ' + isIOS);
+            
+            if (isIOS) {
+                var match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
+                if (match) {
+                    log('iOS Version: ' + match[1] + '.' + match[2] + (match[3] ? '.' + match[3] : ''));
+                }
+            }
+            
+            log('Test completed!');
+        }
+        
+        function testFetch() {
+            log('=== FETCH API TEST ===');
+            log('Testing fetch capability...');
+            
+            if (typeof fetch === 'undefined') {
+                log('❌ FETCH NOT AVAILABLE!');
+                return;
+            }
+            
+            log('✓ Fetch is available');
+            log('Testing Google...');
+            
+            fetch('https://www.google.com', { method: 'HEAD', mode: 'no-cors' })
+                .then(function() {
+                    log('✓ Google fetch successful');
+                    log('Network is working!');
+                })
+                .catch(function(err) {
+                    log('❌ Google fetch failed: ' + err.message);
+                });
+        }
+        
+        function testMainApp() {
+            log('=== MAIN APP TEST ===');
+            log('Client URL: https://servisbet-client.vercel.app/');
+            log('Fetching main app...');
+            
+            fetch('https://servisbet-client.vercel.app/', {
+                method: 'GET',
+                headers: { 'Accept': 'text/html' }
+            })
+                .then(function(res) {
+                    log('Status: ' + res.status + ' ' + res.statusText);
+                    log('Type: ' + res.type);
+                    log('URL: ' + res.url);
+                    log('Redirected: ' + res.redirected);
+                    
+                    if (res.ok) {
+                        log('✓ Main app responded successfully!');
+                        return res.text();
+                    } else {
+                        log('❌ Main app returned error status');
+                        throw new Error('HTTP ' + res.status);
+                    }
+                })
+                .then(function(html) {
+                    log('HTML length: ' + html.length + ' bytes');
+                    log('Contains root: ' + (html.indexOf('root') > -1 ? 'YES' : 'NO'));
+                    log('Contains script: ' + (html.indexOf('script') > -1 ? 'YES' : 'NO'));
+                    
+                    // Show first 200 characters
+                    log('HTML preview:');
+                    log(html.substring(0, 200));
+                    
+                    if (html.indexOf('root') > -1 && html.indexOf('script') > -1) {
+                        log('✓ Main app HTML looks correct!');
+                        log('Try opening: /');
+                    } else {
+                        log('⚠️ Main app HTML may be incorrect');
+                    }
+                })
+                .catch(function(err) {
+                    log('❌ Error: ' + err.message);
+                    log('Error name: ' + err.name);
+                });
+        }
+        
+        function testServer() {
+            log('=== SERVER API TEST ===');
+            log('Server URL: https://servisbeta-server.vercel.app/');
+            log('Testing /api/health endpoint...');
+            
+            fetch('https://servisbeta-server.vercel.app/api/health', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(function(res) {
+                    log('Status: ' + res.status + ' ' + res.statusText);
+                    log('Type: ' + res.type);
+                    log('URL: ' + res.url);
+                    
+                    if (res.ok) {
+                        log('✓ Server responded!');
+                        return res.json();
+                    } else {
+                        log('❌ Server returned: ' + res.status);
+                        return res.text().then(function(text) {
+                            log('Error body: ' + text);
+                            throw new Error('HTTP ' + res.status);
+                        });
+                    }
+                })
+                .then(function(data) {
+                    log('Server response:');
+                    log(JSON.stringify(data, null, 2));
+                    log('✓ Server API is working!');
+                })
+                .catch(function(err) {
+                    log('❌ Server error: ' + err.message);
+                    log('This is likely the main problem!');
+                    
+                    // Try alternative endpoint
+                    log('Trying /api/businesses...');
+                    fetch('https://servisbeta-server.vercel.app/api/businesses?limit=1', {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' }
+                    })
+                        .then(function(res) {
+                            log('Businesses endpoint: ' + res.status);
+                            return res.json();
+                        })
+                        .then(function(data) {
+                            log('Businesses data:');
+                            log(JSON.stringify(data, null, 2));
+                        })
+                        .catch(function(err2) {
+                            log('❌ Businesses also failed: ' + err2.message);
+                        });
+                });
+        }
+        
+        // Auto-run basic test on load
+        window.onload = function() {
+            log('=== PAGE LOADED ===');
+            log('Simple iOS test page ready!');
+            log('Click buttons above to run tests.');
+            log('');
+            testBasic();
+        };
+    </script>
+</body>
+</html>
