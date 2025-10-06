@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Render Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            font-size: 14px;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 15px;
+            line-height: 1.4;
+        }
+        .section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        h2 {
+            color: #4ade80;
+            font-size: 18px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #4ade80;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #60a5fa;
+            font-size: 16px;
+            margin: 15px 0 10px 0;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        button:active { transform: scale(0.98); }
+        pre {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-weight: 600;
+        }
+        .success { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+        .error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .warning { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .info { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        iframe {
+            width: 100%;
+            height: 300px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: white;
+        }
+        #console {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 11px;
+        }
+        .console-entry {
+            padding: 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="section">
+        <h2>🔍 iOS HTML Render Test</h2>
+        <div class="status info" id="status">Initializing...</div>
+    </div>
+
+    <div class="section">
+        <h3>1️⃣ Test Main App HTML</h3>
+        <button onclick="fetchAndShowHTML()">Fetch & Analyze HTML</button>
+        <div id="htmlInfo"></div>
+    </div>
+
+    <div class="section">
+        <h3>2️⃣ Live HTML Preview</h3>
+        <button onclick="renderInIframe()">Render in iFrame</button>
+        <div id="iframeContainer"></div>
+    </div>
+
+    <div class="section">
+        <h3>3️⃣ JavaScript Execution Test</h3>
+        <button onclick="testScriptExecution()">Test Script Loading</button>
+        <div id="scriptInfo"></div>
+    </div>
+
+    <div class="section">
+        <h3>4️⃣ Console Log Monitor</h3>
+        <button onclick="clearConsole()">Clear Console</button>
+        <div id="console"></div>
+    </div>
+
+    <script>
+        var statusEl = document.getElementById('status');
+        var consoleEl = document.getElementById('console');
+        var htmlCache = '';
+        
+        function updateStatus(msg, type) {
+            statusEl.className = 'status ' + type;
+            statusEl.textContent = msg;
+            logToConsole(msg);
+        }
+        
+        function logToConsole(msg) {
+            var entry = document.createElement('div');
+            entry.className = 'console-entry';
+            var time = new Date().toLocaleTimeString();
+            entry.textContent = '[' + time + '] ' + msg;
+            consoleEl.insertBefore(entry, consoleEl.firstChild);
+            console.log(msg);
+        }
+        
+        function clearConsole() {
+            consoleEl.innerHTML = '';
+            logToConsole('Console cleared');
+        }
+        
+        // Override console methods to capture logs
+        var originalLog = console.log;
+        var originalError = console.error;
+        var originalWarn = console.warn;
+        
+        console.log = function() {
+            originalLog.apply(console, arguments);
+            logToConsole('LOG: ' + Array.from(arguments).join(' '));
+        };
+        
+        console.error = function() {
+            originalError.apply(console, arguments);
+            logToConsole('ERROR: ' + Array.from(arguments).join(' '));
+        };
+        
+        console.warn = function() {
+            originalWarn.apply(console, arguments);
+            logToConsole('WARN: ' + Array.from(arguments).join(' '));
+        };
+        
+        // Capture all errors
+        window.addEventListener('error', function(e) {
+            logToConsole('GLOBAL ERROR: ' + e.message + ' at ' + e.filename + ':' + e.lineno);
+        });
+        
+        function fetchAndShowHTML() {
+            updateStatus('Fetching main app HTML...', 'info');
+            var infoEl = document.getElementById('htmlInfo');
+            infoEl.innerHTML = '<div class="status info">Loading...</div>';
+            
+            fetch('https://servisbet-client.vercel.app/', {
+                method: 'GET',
+                headers: { 'Accept': 'text/html' }
+            })
+            .then(function(res) {
+                logToConsole('Response Status: ' + res.status);
+                logToConsole('Response Type: ' + res.type);
+                logToConsole('Response Headers: ' + JSON.stringify(Array.from(res.headers.entries())));
+                
+                if (!res.ok) {
+                    throw new Error('HTTP ' + res.status);
+                }
+                return res.text();
+            })
+            .then(function(html) {
+                htmlCache = html;
+                
+                var info = '<div class="status success">HTML Fetched Successfully!</div>';
+                info += '<h3>HTML Analysis:</h3>';
+                info += '<div class="status info">Length: ' + html.length + ' bytes</div>';
+                info += '<div class="status ' + (html.indexOf('<!doctype') > -1 || html.indexOf('<!DOCTYPE') > -1 ? 'success' : 'error') + '">Has DOCTYPE: ' + (html.indexOf('<!doctype') > -1 || html.indexOf('<!DOCTYPE') > -1 ? 'YES' : 'NO') + '</div>';
+                info += '<div class="status ' + (html.indexOf('<html') > -1 ? 'success' : 'error') + '">Has HTML tag: ' + (html.indexOf('<html') > -1 ? 'YES' : 'NO') + '</div>';
+                info += '<div class="status ' + (html.indexOf('<head>') > -1 ? 'success' : 'error') + '">Has HEAD tag: ' + (html.indexOf('<head>') > -1 ? 'YES' : 'NO') + '</div>';
+                info += '<div class="status ' + (html.indexOf('<body>') > -1 ? 'success' : 'error') + '">Has BODY tag: ' + (html.indexOf('<body>') > -1 ? 'YES' : 'NO') + '</div>';
+                info += '<div class="status ' + (html.indexOf('id="root"') > -1 ? 'success' : 'error') + '">Has root div: ' + (html.indexOf('id="root"') > -1 ? 'YES' : 'NO') + '</div>';
+                info += '<div class="status ' + (html.indexOf('</html>') > -1 ? 'success' : 'error') + '">Has closing HTML: ' + (html.indexOf('</html>') > -1 ? 'YES' : 'NO') + '</div>';
+                
+                // Check for scripts
+                var scriptMatches = html.match(/<script[^>]*>/g);
+                var scriptCount = scriptMatches ? scriptMatches.length : 0;
+                info += '<div class="status ' + (scriptCount > 0 ? 'success' : 'error') + '">Script tags: ' + scriptCount + '</div>';
+                
+                if (scriptMatches) {
+                    info += '<h3>Script Tags Found:</h3><pre>';
+                    scriptMatches.forEach(function(script, i) {
+                        info += (i + 1) + '. ' + script + '\n';
+                    });
+                    info += '</pre>';
+                }
+                
+                // Show first 1000 characters
+                info += '<h3>HTML Preview (first 1000 chars):</h3>';
+                info += '<pre>' + escapeHtml(html.substring(0, 1000)) + '</pre>';
+                
+                // Show last 500 characters
+                info += '<h3>HTML End (last 500 chars):</h3>';
+                info += '<pre>' + escapeHtml(html.substring(html.length - 500)) + '</pre>';
+                
+                infoEl.innerHTML = info;
+                updateStatus('HTML analysis complete!', 'success');
+            })
+            .catch(function(err) {
+                logToConsole('Fetch error: ' + err.message);
+                infoEl.innerHTML = '<div class="status error">Error: ' + err.message + '</div>';
+                updateStatus('Failed to fetch HTML', 'error');
+            });
+        }
+        
+        function renderInIframe() {
+            updateStatus('Rendering HTML in iframe...', 'info');
+            var container = document.getElementById('iframeContainer');
+            
+            if (!htmlCache) {
+                container.innerHTML = '<div class="status warning">Please fetch HTML first (button above)</div>';
+                return;
+            }
+            
+            var iframe = document.createElement('iframe');
+            iframe.id = 'renderFrame';
+            
+            iframe.onload = function() {
+                logToConsole('iFrame loaded successfully');
+                updateStatus('iFrame render complete', 'success');
+                
+                setTimeout(function() {
+                    try {
+                        var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        var iframeBody = iframeDoc.body;
+                        
+                        var renderInfo = '<div class="status success">iFrame Rendered!</div>';
+                        renderInfo += '<h3>Rendered Content:</h3>';
+                        renderInfo += '<div class="status info">Body innerHTML length: ' + (iframeBody.innerHTML.length) + '</div>';
+                        renderInfo += '<div class="status info">Child elements: ' + (iframeBody.children.length) + '</div>';
+                        
+                        if (iframeBody.children.length > 0) {
+                            renderInfo += '<h3>Elements in Body:</h3><pre>';
+                            for (var i = 0; i < iframeBody.children.length; i++) {
+                                var el = iframeBody.children[i];
+                                renderInfo += (i + 1) + '. <' + el.tagName.toLowerCase();
+                                if (el.id) renderInfo += ' id="' + el.id + '"';
+                                if (el.className) renderInfo += ' class="' + el.className + '"';
+                                renderInfo += '>\n';
+                            }
+                            renderInfo += '</pre>';
+                        }
+                        
+                        // Check for root div
+                        var rootDiv = iframeDoc.getElementById('root');
+                        if (rootDiv) {
+                            renderInfo += '<div class="status success">Found root div!</div>';
+                            renderInfo += '<div class="status info">Root innerHTML length: ' + rootDiv.innerHTML.length + '</div>';
+                            renderInfo += '<div class="status info">Root children: ' + rootDiv.children.length + '</div>';
+                        } else {
+                            renderInfo += '<div class="status error">Root div not found!</div>';
+                        }
+                        
+                        container.innerHTML = renderInfo + container.innerHTML;
+                    } catch (err) {
+                        logToConsole('iFrame access error: ' + err.message);
+                    }
+                }, 1000);
+            };
+            
+            iframe.onerror = function() {
+                logToConsole('iFrame load error');
+                updateStatus('iFrame failed to load', 'error');
+            };
+            
+            container.innerHTML = '';
+            container.appendChild(iframe);
+            
+            var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(htmlCache);
+            iframeDoc.close();
+        }
+        
+        function testScriptExecution() {
+            updateStatus('Testing script execution...', 'info');
+            var infoEl = document.getElementById('scriptInfo');
+            
+            var testHTML = htmlCache || '';
+            if (!testHTML) {
+                infoEl.innerHTML = '<div class="status warning">Please fetch HTML first</div>';
+                return;
+            }
+            
+            var info = '<h3>Script Analysis:</h3>';
+            
+            // Extract all script tags
+            var scriptRegex = /<script([^>]*)>([\s\S]*?)<\/script>/gi;
+            var inlineScriptRegex = /<script([^>]*)>/gi;
+            
+            var scripts = [];
+            var match;
+            
+            while ((match = scriptRegex.exec(testHTML)) !== null) {
+                scripts.push({
+                    attributes: match[1],
+                    content: match[2],
+                    full: match[0]
+                });
+            }
+            
+            while ((match = inlineScriptRegex.exec(testHTML)) !== null) {
+                if (match[1].indexOf('src=') > -1) {
+                    scripts.push({
+                        attributes: match[1],
+                        content: '(external)',
+                        full: match[0]
+                    });
+                }
+            }
+            
+            info += '<div class="status info">Total scripts found: ' + scripts.length + '</div>';
+            
+            scripts.forEach(function(script, i) {
+                info += '<h3>Script ' + (i + 1) + ':</h3>';
+                info += '<pre>Attributes: ' + escapeHtml(script.attributes) + '</pre>';
+                if (script.content !== '(external)') {
+                    info += '<pre>Content: ' + escapeHtml(script.content.substring(0, 200)) + (script.content.length > 200 ? '...' : '') + '</pre>';
+                }
+            });
+            
+            infoEl.innerHTML = info;
+            updateStatus('Script analysis complete', 'success');
+        }
+        
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize
+        window.onload = function() {
+            updateStatus('iOS Render Test Ready!', 'success');
+            logToConsole('=== iOS Render Test Initialized ===');
+            logToConsole('User Agent: ' + navigator.userAgent);
+            logToConsole('Platform: ' + navigator.platform);
+            logToConsole('URL: ' + window.location.href);
+            
+            // Auto-fetch HTML on load
+            setTimeout(fetchAndShowHTML, 500);
+        };
+    </script>
+</body>
+</html>
