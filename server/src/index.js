@@ -76,6 +76,21 @@ app.get('/api', (req, res) => {
   });
 });
 
+// Health check endpoint for monitoring and diagnostics
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    status: 'healthy',
+    message: 'ServisbetA API is running',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Alias for businesses endpoint (client uses /api/businesses but server has /api/business)
+app.use('/api/businesses', require('./routes/business'));
+
 // Testing: Add error handler middleware (must be last)
 app.use(errorHandler);
 
