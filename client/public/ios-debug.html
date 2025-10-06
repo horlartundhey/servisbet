@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Test - ServisbetA</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            background: rgba(74, 222, 128, 0.3);
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: 600;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        a {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        #info {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 ServisbetA iOS Debug</h1>
+        
+        <div class="status" id="status">✅ This page loaded successfully!</div>
+        
+        <div id="info">
+            <strong>Device Info:</strong><br>
+            Platform: <span id="platform">-</span><br>
+            User Agent: <span id="ua">-</span><br>
+            Screen: <span id="screen">-</span><br>
+        </div>
+
+        <button onclick="window.location.href='/'">🚀 Try Main App</button>
+        
+        <a href="/ios-simple.html">📊 Simple Diagnostic</a>
+        
+        <button onclick="testFetch()">🌐 Test API Fetch</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Fill device info
+        document.getElementById('platform').textContent = navigator.platform;
+        document.getElementById('ua').textContent = navigator.userAgent.substring(0, 100) + '...';
+        document.getElementById('screen').textContent = window.screen.width + 'x' + window.screen.height;
+        
+        // Test fetch
+        function testFetch() {
+            var result = document.getElementById('result');
+            result.innerHTML = '<div class="status" style="background: rgba(96, 165, 250, 0.3);">Testing API...</div>';
+            
+            fetch('https://servisbeta-server.vercel.app/api/health')
+                .then(function(res) {
+                    if (res.ok) {
+                        result.innerHTML = '<div class="status">✅ API Works! Server is responding.</div>';
+                    } else {
+                        result.innerHTML = '<div class="status" style="background: rgba(239, 68, 68, 0.3);">❌ API Error: ' + res.status + '</div>';
+                    }
+                })
+                .catch(function(err) {
+                    result.innerHTML = '<div class="status" style="background: rgba(239, 68, 68, 0.3);">❌ Network Error: ' + err.message + '</div>';
+                });
+        }
+        
+        console.log('ServisbetA iOS Debug Page Loaded Successfully!');
+    </script>
+</body>
+</html>

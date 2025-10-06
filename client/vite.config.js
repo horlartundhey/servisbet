@@ -25,13 +25,13 @@ export default defineConfig({
     },
   },
   build: {
-    target: ['es2015', 'safari11'], // iOS Safari compatibility
+    target: ['es2020', 'safari14'], // Modern iOS Safari compatibility
     outDir: 'dist',
     sourcemap: false,
     assetsDir: 'assets',
+    minify: 'esbuild',
     rollupOptions: {
       output: {
-        // iOS Safari cache busting - use hash-based naming
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
