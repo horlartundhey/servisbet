@@ -13,8 +13,10 @@ const corsOptions = {
     'http://localhost:3000',
     'https://servisbet-client.vercel.app',
     'https://servisbet-client-git-main-horlartundheys-projects.vercel.app',
-    'https://lynki.gemorah.org',  // cPanel shared hosting domain
-    'http://lynki.gemorah.org'     // Allow both http and https
+    'https://servisbeta.com',      // Production domain
+    'http://servisbeta.com',       // Allow both http and https
+    'https://www.servisbeta.com',  // With www subdomain
+    'http://www.servisbeta.com'    // Allow both http and https
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
