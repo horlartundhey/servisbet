@@ -104,33 +104,33 @@ const businessProfileSchema = new mongoose.Schema({
   images: {
     logo: { 
       type: String, 
-      required: [true, 'Business logo is required'], // Cloudinary URL
+      required: true, // Logo is required
       validate: {
         validator: function(v) {
-          return v && v.length > 0;
+          return v && v.trim().length > 0;
         },
-        message: 'Business logo is required for profile completion'
+        message: 'Business logo is required'
       }
     },
     cover: { 
       type: String, 
-      required: [true, 'Business cover image is required'], // Cloudinary URL
+      required: true, // Cover image is required
       validate: {
         validator: function(v) {
-          return v && v.length > 0;
+          return v && v.trim().length > 0;
         },
-        message: 'Business cover image is required for profile completion'
+        message: 'Business cover image is required'
       }
     },
     gallery: {
       type: [{ type: String }], // Array of Cloudinary URLs
+      required: true, // Gallery is required
       validate: {
         validator: function(v) {
-          return v && v.length >= 2; // Require at least 2 gallery images
+          return Array.isArray(v) && v.length >= 2;
         },
-        message: 'At least 2 gallery images are required for profile completion'
-      },
-      default: []
+        message: 'At least 2 gallery images are required'
+      }
     }
   },
 
