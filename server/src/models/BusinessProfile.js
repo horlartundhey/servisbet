@@ -11,7 +11,7 @@ const businessProfileSchema = new mongoose.Schema({
   // Business Identification
   businessSlug: {
     type: String,
-    required: true,
+    required: false, // Auto-generated from businessName in pre-save hook
     unique: true, // Each business must have a unique slug
     lowercase: true,
     trim: true,
