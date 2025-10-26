@@ -50,14 +50,14 @@ class EmailVerificationService {
               <div class="content">
                   <p>Hi <strong>${reviewData.anonymousReviewer.name}</strong>,</p>
                   
-                  <p>Thank you for taking the time to review <strong>${businessData.name}</strong>! To help maintain the quality and authenticity of our reviews, please verify your email address.</p>
+                  <p>Thank you for taking the time to review <strong>${businessData.businessName || businessData.name || 'this business'}</strong>! To help maintain the quality and authenticity of our reviews, please verify your email address.</p>
                   
                   <div class="review-card">
                       <h3>Your Review Preview:</h3>
                       <div class="stars">${'★'.repeat(reviewData.rating)}${'☆'.repeat(5 - reviewData.rating)}</div>
                       <p><strong>${reviewData.title || 'Review'}</strong></p>
                       <p>${reviewData.content}</p>
-                      <p><small>Review for: ${businessData.name}</small></p>
+                      <p><small>Review for: ${businessData.businessName || businessData.name || 'this business'}</small></p>
                   </div>
                   
                   <center>
@@ -93,7 +93,7 @@ class EmailVerificationService {
 
       Hi ${reviewData.anonymousReviewer.name},
 
-      Thank you for reviewing ${businessData.name}! Please verify your email to publish your review.
+      Thank you for reviewing ${businessData.businessName || businessData.name || 'this business'}! Please verify your email to publish your review.
 
       Your Review:
       Rating: ${reviewData.rating}/5 stars
