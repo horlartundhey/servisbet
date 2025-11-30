@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 // @ts-ignore
 import servlogo from '../assets/images/servisbeta-logo.png';
 import { Button } from '@/components/ui/button';
@@ -7,18 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, User, Menu, LogOut, Settings, UserCircle, Bell } from 'lucide-react';
+import { Search, User, Menu, LogOut, Settings, UserCircle, Bell, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNotificationCenter } from '../contexts/NotificationCenterContext';
-import NotificationCenter from './NotificationCenter';
+// Removed notification center for iOS compatibility
+// import { useNotificationCenter } from '../contexts/NotificationCenterContext';
+// import NotificationCenter from './NotificationCenter';
 
 const Header = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationCenter();
+  // Temporarily disable notifications for iOS compatibility
+  // const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationCenter();
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +69,21 @@ const Header = () => {
     }
   };
 
+  const scrollToSection = (sectionId: string) => {
+    setMobileMenuOpen(false);
+    
+    if (location.pathname !== '/') {
+      // Navigate to home with hash
+      navigate(`/#${sectionId}`);
+    } else {
+      // Already on home page, just scroll
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
   return (
     <header className="bg-background border-b border-border sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -88,29 +107,33 @@ const Header = () => {
             </form>
           </div>
 
-          {/* Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6">
-            <Link to="/businesses" className="text-foreground hover:text-primary transition-colors">
-              All Businesses
+          {/* Navigation - Desktop */}
+          <nav className="hidden lg:flex items-center space-x-8">
+            <button 
+              onClick={() => scrollToSection('services')} 
+              className="text-foreground hover:text-primary transition-colors font-medium"
+            >
+              Services
+            </button>
+            <button 
+              onClick={() => scrollToSection('process')} 
+              className="text-foreground hover:text-primary transition-colors font-medium"
+            >
+              Process
+            </button>
+            <Link to="/portfolio" className="text-foreground hover:text-primary transition-colors font-medium">
+              Portfolio
             </Link>
-            <Link to="/search" className="text-foreground hover:text-primary transition-colors">
-              Browse
-            </Link>
-            <Link to="/pricing" className="text-foreground hover:text-primary transition-colors">
-              Pricing
+            <Link to="/search" className="text-foreground/60 hover:text-primary transition-colors text-sm font-medium">
+              Browse Businesses
             </Link>
             {!isAuthenticated || user?.role !== 'admin' ? (
-              <Link to="/business-dashboard" className="text-foreground hover:text-primary transition-colors">
-                For Business
+              <Link to="/business-dashboard" className="text-foreground hover:text-primary transition-colors font-medium">
+                Client Portal
               </Link>
             ) : null}
-            {user?.role === 'business' && (
-              <Link to="/analytics" className="text-foreground hover:text-primary transition-colors">
-                Analytics
-              </Link>
-            )}
             {user?.role === 'admin' && (
-              <Link to="/admin" className="text-foreground hover:text-primary transition-colors">
+              <Link to="/admin" className="text-foreground hover:text-primary transition-colors font-medium">
                 Admin
               </Link>
             )}
@@ -120,8 +143,8 @@ const Header = () => {
           <div className="flex items-center space-x-3">
             {isAuthenticated && user ? (
               <>
-                {/* Real-time Notification Center */}
-                <NotificationCenter />
+                {/* Real-time Notification Center - Temporarily disabled for iOS compatibility */}
+                {/* <NotificationCenter /> */}
 
                 {/* Authenticated User Menu */}
                 <DropdownMenu>
@@ -183,12 +206,90 @@ const Header = () => {
               </>
             )}
             
-            {/* Mobile Menu */}
-            <Button variant="ghost" size="sm" className="lg:hidden">
-              <Menu className="h-4 w-4" />
+            {/* Mobile Menu Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="lg:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
+
+        {/* Mobile Menu Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden fixed inset-0 top-16 bg-background z-50 overflow-y-auto border-t">
+            <nav className="flex flex-col p-6 space-y-4">
+              <button 
+                onClick={() => scrollToSection('services')} 
+                className="text-left text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+              >
+                Services
+              </button>
+              <button 
+                onClick={() => scrollToSection('process')} 
+                className="text-left text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+              >
+                Process
+              </button>
+              <Link 
+                to="/portfolio" 
+                className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Portfolio
+              </Link>
+              <Link 
+                to="/search" 
+                className="text-lg font-medium text-foreground/60 hover:text-primary transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Browse Businesses
+              </Link>
+              {!isAuthenticated || user?.role !== 'admin' ? (
+                <Link 
+                  to="/business-dashboard" 
+                  className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Client Portal
+                </Link>
+              ) : null}
+              {user?.role === 'admin' && (
+                <Link 
+                  to="/admin" 
+                  className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Admin
+                </Link>
+              )}
+              
+              {!isAuthenticated && (
+                <div className="flex flex-col space-y-3 pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    asChild
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Link to="/auth">Log in</Link>
+                  </Button>
+                  <Button 
+                    className="w-full bg-primary hover:bg-primary/90" 
+                    asChild
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Link to="/auth">Sign up</Link>
+                  </Button>
+                </div>
+              )}
+            </nav>
+          </div>
+        )}
+
 
         {/* Mobile Search - Visible on small screens */}
         <div className="md:hidden pb-3">
@@ -205,15 +306,15 @@ const Header = () => {
         </div>
       </div>
 
-      {/* NotificationCenter */}
-      <NotificationCenter
+      {/* NotificationCenter - Disabled for iOS compatibility */}
+      {/* <NotificationCenter
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
         notifications={notifications}
         onMarkAsRead={markAsRead}
         onMarkAllAsRead={markAllAsRead}
         onNotificationClick={handleNotificationClick}
-      />
+      /> */}
     </header>
   );
 };

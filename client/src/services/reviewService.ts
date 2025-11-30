@@ -146,12 +146,37 @@ export const reviewService = {
 
   // Create anonymous review (no authentication required)
   async createAnonymousReview(formData: FormData): Promise<any> {
-    const response = await api.post('/review/anonymous', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
+    console.log('ReviewService: Starting anonymous review creation...');
+    console.log('FormData entries:');
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes)`);
+      } else {
+        console.log(`${key}: ${value}`);
+      }
+    }
+    
+    try {
+      console.log('ReviewService: Making API call to /review/anonymous');
+      const response = await api.post('/review/anonymous', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 30000, // 30 second timeout
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+          console.log(`Upload progress: ${percentCompleted}%`);
+        }
+      });
+      console.log('ReviewService: API call successful:', response);
+      return response.data;
+    } catch (error: any) {
+      console.error('ReviewService: API call failed:', error);
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timeout - please try again');
+      }
+      throw error;
+    }
   },
 
   // Verify anonymous review email (via link)

@@ -4,6 +4,7 @@ import api from './api';
 
 export interface Business {
   _id: string;
+  slug?: string;
   name: string;
   description: string;
   category: string;
@@ -249,7 +250,7 @@ export const businessService = {
   // Get business by slug
   async getBusinessBySlug(slug: string): Promise<Business> {
     const response = await api.get(`/business/slug/${slug}`);
-    return response.data.business;
+    return response.data.data;
   },
 
   // Update business hours

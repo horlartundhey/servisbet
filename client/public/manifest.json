@@ -1,6 +1,6 @@
 {
-  "name": "ServisbetA Business Directory",
-  "short_name": "ServisbetA",
+  "name": "Servisbeta Business Directory",
+  "short_name": "Servisbeta",
   "description": "Business review and directory platform",
   "start_url": "/",
   "display": "standalone",

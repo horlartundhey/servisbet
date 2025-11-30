@@ -100,7 +100,7 @@ const businessProfileSchema = new mongoose.Schema({
     sunday: { open: String, close: String, closed: { type: Boolean, default: false } }
   },
 
-  // Business Images (Required for profile completion)
+  // Business Images (Only logo required)
   images: {
     logo: { 
       type: String, 
@@ -114,23 +114,13 @@ const businessProfileSchema = new mongoose.Schema({
     },
     cover: { 
       type: String, 
-      required: true, // Cover image is required
-      validate: {
-        validator: function(v) {
-          return v && v.trim().length > 0;
-        },
-        message: 'Business cover image is required'
-      }
+      required: false, // Cover image is optional
+      default: ''
     },
     gallery: {
       type: [{ type: String }], // Array of Cloudinary URLs
-      required: true, // Gallery is required
-      validate: {
-        validator: function(v) {
-          return Array.isArray(v) && v.length >= 2;
-        },
-        message: 'At least 2 gallery images are required'
-      }
+      required: false, // Gallery is optional
+      default: []
     }
   },
 

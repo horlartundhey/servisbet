@@ -5,17 +5,19 @@ import StarRating from './StarRating';
 
 interface BusinessCardProps {
   id: string;
+  slug?: string;
   name: string;
   category: string;
   rating: number;
   reviewCount: number;
   image: string;
   description: string;
-  onClick: (id: string) => void;
+  onClick: (id: string, business?: any) => void;
 }
 
 const BusinessCard: React.FC<BusinessCardProps> = ({
   id,
+  slug,
   name,
   category,
   rating,
@@ -27,7 +29,7 @@ const BusinessCard: React.FC<BusinessCardProps> = ({
   return (
     <Card 
       className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 group"
-      onClick={() => onClick(id)}
+      onClick={() => onClick(id, { id, slug, name })}
     >
       <CardContent className="p-0">
         <div className="relative h-48 overflow-hidden rounded-t-lg">

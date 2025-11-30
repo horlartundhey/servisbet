@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
 
-console.log('ServisbetA: Initializing app...');
+console.log('Servisbeta: Initializing app...');
 
 const rootElement = document.getElementById("root");
 

@@ -62,11 +62,14 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/upload', require('./routes/businessImageUpload'));
 app.use('/api/analytics', require('./routes/analytics'));
 
+// SEO routes - sitemap and robots.txt
+app.use('/', require('./routes/sitemap'));
+
 // Basic health check
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'ServisbetA API Server Running - FIXED!',
+    message: 'Servisbeta API Server Running - FIXED!',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
@@ -85,7 +88,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     success: true,
     status: 'healthy',
-    message: 'ServisbetA API is running',
+    message: 'Servisbeta API is running',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development'

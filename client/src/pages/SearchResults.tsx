@@ -10,6 +10,7 @@ import { businessService, Business as ApiBusiness } from '../services/businessSe
 // Interface expected by BusinessGrid component
 interface Business {
   id: string;
+  slug?: string;
   name: string;
   category: string;
   rating: number;
@@ -22,6 +23,7 @@ interface Business {
 const transformBusiness = (apiBusiness: ApiBusiness): Business => {
   return {
     id: apiBusiness._id,
+    slug: apiBusiness.slug,
     name: apiBusiness.name,
     category: apiBusiness.category,
     rating: apiBusiness.averageRating || 0,
@@ -107,8 +109,9 @@ const SearchResults = () => {
     setSearchParams(params);
   };
 
-  const handleBusinessClick = (businessId: string) => {
-    navigate(`/business/${businessId}`);
+  const handleBusinessClick = (businessId: string, business?: any) => {
+    const identifier = business?.slug || businessId;
+    navigate(`/business/${identifier}`);
   };
 
   const clearAllFilters = () => {

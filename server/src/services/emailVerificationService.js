@@ -120,7 +120,7 @@ class EmailVerificationService {
     const mailOptions = {
       from: `"Servisbeta Reviews" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: reviewData.anonymousReviewer.email,
-      subject: `Verify Your Review for ${businessData.name} - Servisbeta`,
+      subject: `Verify Your Review for ${businessData.businessName || businessData.name || 'Business'} - Servisbeta`,
       text: textContent,
       html: htmlContent
     };
@@ -170,7 +170,7 @@ class EmailVerificationService {
                   <div class="success-badge">Thank you ${reviewData.anonymousReviewer.name}!</div>
               </div>
               <div class="content">
-                  <p>Great news! Your review for <strong>${businessData.name}</strong> has been successfully published on Servisbeta.</p>
+                  <p>Great news! Your review for <strong>${businessData.businessName || businessData.name || 'this business'}</strong> has been successfully published on Servisbeta.</p>
                   
                   <center>
                       <a href="${reviewUrl}" class="button">View Your Published Review</a>
@@ -211,7 +211,7 @@ class EmailVerificationService {
    * Send low rating alert to business owner
    */
   async sendLowRatingAlert({ businessOwner, business, averageRating, totalReviews, newReview }) {
-    const subject = `🚨 Low Rating Alert - ${business.name} (${averageRating} ⭐)`;
+    const subject = `🚨 Low Rating Alert - ${business.businessName || business.name || 'Business'} (${averageRating} ⭐)`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -221,7 +221,7 @@ class EmailVerificationService {
         </div>
         
         <div style="padding: 30px; background: #f8f9fa; border: 1px solid #e9ecef;">
-          <h2 style="color: #dc3545; margin-top: 0;">Rating Update for ${business.name}</h2>
+          <h2 style="color: #dc3545; margin-top: 0;">Rating Update for ${business.businessName || business.name || 'this business'}</h2>
           
           <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;">
             <h3 style="margin: 0 0 10px 0; color: #dc3545;">Current Rating Status</h3>
@@ -280,7 +280,7 @@ class EmailVerificationService {
 
     try {
       const info = await this.transporter.sendMail(mailOptions);
-      console.log(`🚨 Low rating alert sent to: ${businessOwner.email} for ${business.name}`);
+      console.log(`🚨 Low rating alert sent to: ${businessOwner.email} for ${business.businessName || business.name || 'business'}`);
       console.log('Message ID:', info.messageId);
       return info;
     } catch (error) {

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import StarRating from '../components/StarRating';
 import ReviewCard from '../components/ReviewCard';
+import { BusinessBreadcrumb } from '../components/Breadcrumb';
+import { SEOManager } from '../utils/seo';
 import { businessService, Business as ApiBusiness } from '../services/businessService';
 import { reviewService, Review as ApiReview } from '../services/reviewService';
 
@@ -85,19 +87,31 @@ const BusinessDetail = () => {
 
         console.log('🔍 BusinessDetail: Loading business with ID:', id);
 
-        // Load business details
-        console.log('📡 BusinessDetail: Making API call to businessService.getBusinessById');
-        const businessData = await businessService.getBusinessById(id);
+        // Load business details - try slug first, then ID
+        let businessData;
+        try {
+          console.log('📡 BusinessDetail: Trying slug-based lookup first');
+          businessData = await businessService.getBusinessBySlug(id);
+          console.log('✅ BusinessDetail: Slug lookup successful');
+        } catch (slugError) {
+          console.log('📡 BusinessDetail: Slug lookup failed, trying ID-based lookup');
+          console.log('📡 BusinessDetail: Making API call to businessService.getBusinessById');
+          businessData = await businessService.getBusinessById(id);
+          console.log('✅ BusinessDetail: ID lookup successful');
+        }
         console.log('✅ BusinessDetail: API response received:', businessData);
         
         const transformedBusiness = transformBusiness(businessData);
         console.log('🔄 BusinessDetail: Transformed business data:', transformedBusiness);
         setBusiness(transformedBusiness);
 
-        // Load business reviews (with error handling)
+        // Set SEO meta tags and structured data for business
+        SEOManager.setBusinessPageMeta(transformedBusiness);
+
+        // Load business reviews (with error handling) - use actual business _id, not slug
         try {
-          console.log('📡 BusinessDetail: Loading reviews for business');
-          const reviewsResult = await reviewService.getBusinessReviews(id!, { limit: 10, page: 1 });
+          console.log('📡 BusinessDetail: Loading reviews for business ID:', businessData._id);
+          const reviewsResult = await reviewService.getBusinessReviews(businessData._id, { limit: 10, page: 1 });
           console.log('✅ BusinessDetail: Reviews loaded:', reviewsResult);
           
           const transformedReviews = reviewsResult.reviews.map(transformReview);
@@ -200,11 +214,12 @@ const BusinessDetail = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Header */}
       <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-4 space-y-2">
           <Link to="/" className="inline-flex items-center text-gray-600 hover:text-primary">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to search
           </Link>
+          <BusinessBreadcrumb business={business} />
         </div>
       </div>
 

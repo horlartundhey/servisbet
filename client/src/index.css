@@ -44,7 +44,7 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ServisbetA design system with brand colors */
+/* Servisbeta design system with brand colors */
 
 @layer base {
   :root {
@@ -57,7 +57,7 @@ button {
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 349 100% 59%; /* ServisbetA red #f91942 */
+    --primary: 349 100% 59%; /* Servisbeta red #f91942 */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;

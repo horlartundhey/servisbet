@@ -21,11 +21,12 @@ interface BusinessGridProps {
 const BusinessGrid: React.FC<BusinessGridProps> = ({ businesses, onBusinessClick }) => {
   const navigate = useNavigate();
 
-  const handleBusinessClick = (id: string) => {
+  const handleBusinessClick = (id: string, business?: any) => {
+    const businessIdentifier = business?.slug || id;
     if (onBusinessClick) {
-      onBusinessClick(id);
+      onBusinessClick(businessIdentifier);
     }
-    navigate(`/business/${id}`);
+    navigate(`/business/${businessIdentifier}`);
   };
 
   return (

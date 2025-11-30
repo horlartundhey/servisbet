@@ -207,6 +207,14 @@ const createReview = asyncHandler(async (req, res) => {
     });
   }
 
+  // 🚫 PREVENT BUSINESS OWNERS FROM REVIEWING THEIR OWN BUSINESS
+  if (businessExists.owner.toString() === req.user.id) {
+    return res.status(403).json({
+      success: false,
+      message: 'Business owners cannot review their own businesses'
+    });
+  }
+
   // Check if user already reviewed this business
   const existingReview = await Review.findOne({
     user: req.user.id,
@@ -265,6 +273,11 @@ const createReview = asyncHandler(async (req, res) => {
 // @route   POST /api/review/anonymous
 // @access  Public
 const createAnonymousReview = asyncHandler(async (req, res) => {
+  console.log('=== Anonymous Review Creation Started ===');
+  console.log('Request body:', req.body);
+  console.log('Request files:', req.files);
+  console.log('Request headers:', req.headers);
+  
   const { 
     business,
     businessId, 
@@ -274,21 +287,38 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
     images, 
     videos,
     reviewerName,
-    reviewerEmail
+    reviewerEmail,
+    isAnonymous = true // Default to anonymous for backwards compatibility
   } = req.body;
+
+  console.log('Parsed fields:', {
+    business,
+    businessId,
+    rating,
+    title,
+    content,
+    reviewerName,
+    reviewerEmail,
+    hasImages: !!images,
+    hasVideos: !!videos
+  });
 
   // Use businessId if provided, otherwise use business
   const targetBusiness = businessId || business;
+  console.log('Target business ID:', targetBusiness);
 
   // Handle uploaded files
   let uploadedImages = [];
   if (req.files && req.files.length > 0) {
+    console.log('Processing uploaded files:', req.files.length);
     uploadedImages = req.files.map(file => file.path); // Extract just the Cloudinary URLs
+    console.log('Uploaded image URLs:', uploadedImages);
   }
 
   // Process provided images - handle both string URLs and objects
   let processedImages = [];
   if (images && Array.isArray(images)) {
+    console.log('Processing images array:', images);
     processedImages = images.map(img => {
       if (typeof img === 'string') {
         return img; // Already a URL string
@@ -298,6 +328,7 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
       return null;
     }).filter(Boolean);
   } else if (typeof images === 'string') {
+    console.log('Processing images string:', images);
     // Handle case where images might be sent as stringified JSON
     try {
       const parsed = JSON.parse(images);
@@ -305,6 +336,7 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
         processedImages = parsed.map(img => img.url || img).filter(Boolean);
       }
     } catch (e) {
+      console.log('Failed to parse images JSON, treating as single URL');
       // If parsing fails, treat as single URL
       processedImages = [images];
     }
@@ -312,14 +344,18 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
 
   // Merge uploaded images with processed image URLs
   const allImages = [...uploadedImages, ...processedImages];
+  console.log('All processed images:', allImages);
 
   // Validation
+  console.log('Validating required fields...');
   if (!targetBusiness || !rating || !content || !reviewerName || !reviewerEmail) {
+    console.log('Validation failed - missing required fields');
     return res.status(400).json({
       success: false,
       message: 'Business ID, rating, content, reviewer name, and email are required'
     });
   }
+  console.log('Validation passed');
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -336,6 +372,16 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
     return res.status(404).json({
       success: false,
       message: 'Business not found'
+    });
+  }
+
+  // 🚫 PREVENT BUSINESS OWNERS FROM ANONYMOUSLY REVIEWING THEIR OWN BUSINESS
+  // Check if the reviewer's email matches the business owner's email
+  const businessOwner = await User.findById(businessExists.owner);
+  if (businessOwner && businessOwner.email.toLowerCase() === reviewerEmail.toLowerCase()) {
+    return res.status(403).json({
+      success: false,
+      message: 'Business owners cannot review their own businesses, even anonymously'
     });
   }
 
@@ -367,27 +413,39 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
     });
   }
 
-  // Create the anonymous review
-  const review = await Review.create({
+  // Create the review - handle both anonymous and public reviews
+  const reviewData = {
     business: targetBusiness,
     rating,
     title,
     content,
     images: allImages,
     videos: videos || [],
-    isAnonymous: true,
-    anonymousReviewer: {
-      name: reviewerName,
-      email: reviewerEmail,
-      isVerified: false
-    },
-    status: 'pending', // Will be published after email verification
+    isAnonymous: Boolean(isAnonymous),
     source: 'web',
     ipAddress: clientIP,
     deviceFingerprint,
     userAgent: req.headers['user-agent'],
     submissionAttempts: 1
-  });
+  };
+
+  // Handle anonymous vs public review fields
+  if (isAnonymous) {
+    reviewData.anonymousReviewer = {
+      name: reviewerName,
+      email: reviewerEmail,
+      isVerified: false
+    };
+    reviewData.status = 'pending'; // Anonymous reviews need email verification
+  } else {
+    // For public reviews, store reviewer info in main fields
+    reviewData.reviewerName = reviewerName;
+    reviewData.reviewerEmail = reviewerEmail;
+    reviewData.status = 'published'; // Public reviews go live immediately after spam check
+    reviewData.isVerified = true; // Public reviews are considered verified
+  }
+
+  const review = await Review.create(reviewData);
 
   // Calculate and set spam score
   await review.calculateSpamScore();
@@ -409,34 +467,61 @@ const createAnonymousReview = asyncHandler(async (req, res) => {
     });
   }
 
-  // Send email verification
-  try {
-    await emailVerificationService.sendAnonymousReviewVerification(
-      review, 
-      review.anonymousReviewer.verificationToken,
-      businessExists
-    );
+  // Handle email verification and response based on review type
+  if (isAnonymous) {
+    // Send email verification for anonymous reviews
+    try {
+      await emailVerificationService.sendAnonymousReviewVerification(
+        review, 
+        review.anonymousReviewer.verificationToken,
+        businessExists
+      );
 
-    res.status(202).json({
+      res.status(202).json({
+        success: true,
+        message: 'Anonymous review submitted successfully! Please check your email to verify and publish your review.',
+        data: {
+          reviewId: review._id,
+          verificationRequired: true,
+          isAnonymous: true,
+          reviewerEmail: reviewerEmail,
+          businessName: businessExists.businessName || businessExists.name
+        }
+      });
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      
+      // If email fails, still save the review but inform user
+      res.status(202).json({
+        success: true,
+        message: 'Review submitted, but we encountered an issue sending the verification email. Please contact support.',
+        data: {
+          reviewId: review._id,
+          emailIssue: true,
+          isAnonymous: true
+        }
+      });
+    }
+  } else {
+    // Public reviews go live immediately (after spam check)
+    // Update business statistics
+    await BusinessProfile.updateReviewStats(targetBusiness);
+
+    // Check for low rating alerts
+    if (review.rating <= 3) {
+      await checkAndSendLowRatingAlert(review, businessExists);
+    }
+
+    res.status(201).json({
       success: true,
-      message: 'Review submitted successfully! Please check your email to verify and publish your review.',
+      message: 'Public review submitted successfully and is now live!',
       data: {
         reviewId: review._id,
-        verificationRequired: true,
-        reviewerEmail: reviewerEmail,
-        businessName: businessExists.name
-      }
-    });
-  } catch (emailError) {
-    console.error('Failed to send verification email:', emailError);
-    
-    // If email fails, still save the review but inform user
-    res.status(202).json({
-      success: true,
-      message: 'Review submitted, but we encountered an issue sending the verification email. Please contact support.',
-      data: {
-        reviewId: review._id,
-        emailIssue: true
+        verificationRequired: false,
+        isAnonymous: false,
+        reviewerName: reviewerName,
+        businessName: businessExists.businessName || businessExists.name,
+        status: 'published'
       }
     });
   }

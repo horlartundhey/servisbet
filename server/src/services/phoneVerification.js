@@ -40,7 +40,7 @@ class PhoneVerificationService {
     // Format phone number (add country code if missing)
     const formattedPhone = this.formatPhoneNumber(phoneNumber);
     
-    const message = `Your ServisbetA verification code is: ${verificationCode}. This code will expire in 10 minutes.`;
+    const message = `Your Servisbeta verification code is: ${verificationCode}. This code will expire in 10 minutes.`;
 
     try {
       if (this.mockMode) {

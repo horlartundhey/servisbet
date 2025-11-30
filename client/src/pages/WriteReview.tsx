@@ -40,10 +40,42 @@ const WriteReview = () => {
     content: '',
     reviewerName: '',
     reviewerEmail: '',
+    isAnonymous: true, // Default to anonymous, user can opt for public
     images: [] as File[]
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [retryCount, setRetryCount] = useState(0);
+  const [submissionId, setSubmissionId] = useState<string | null>(null); // Track submission to prevent duplicates
+
+  // Track online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast({
+        title: "Connection Restored",
+        description: "You are back online. You can now submit reviews."
+      });
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast({
+        variant: "destructive",
+        title: "Connection Lost", 
+        description: "Please check your internet connection."
+      });
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
     // Fetch business details
   useEffect(() => {
@@ -136,11 +168,33 @@ const WriteReview = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Submit review
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Submit review with retry mechanism
+  const handleSubmit = async (e: React.FormEvent, isRetry = false) => {
     e.preventDefault();
     
+    // Check online status
+    if (!isOnline) {
+      toast({
+        variant: "destructive",
+        title: "No Internet Connection",
+        description: "Please check your internet connection and try again."
+      });
+      return;
+    }
+
+    // Prevent duplicate submissions (unless it's a retry)
+    if (submitting && !isRetry) {
+      console.log('Submission already in progress, ignoring duplicate request');
+      return;
+    }
+    
+    console.log('=== Review Submission Started ===');
+    console.log('Form Data:', formData);
+    console.log('Business ID:', id);
+    console.log('Is Retry:', isRetry, 'Retry Count:', retryCount);
+    
     if (!validateForm()) {
+      console.log('Form validation failed:', errors);
       toast({
         variant: "destructive",
         title: "Please fix the errors",
@@ -150,8 +204,16 @@ const WriteReview = () => {
     }
 
     setSubmitting(true);
+    console.log('Setting submitting state to true');
 
     try {
+      console.log('Creating FormData for submission...');
+      
+      // Generate unique submission ID to track this attempt
+      const currentSubmissionId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setSubmissionId(currentSubmissionId);
+      console.log('Submission ID:', currentSubmissionId);
+      
       // Create form data for file upload
       const submitData = new FormData();
       submitData.append('business', id!);
@@ -160,32 +222,109 @@ const WriteReview = () => {
       submitData.append('content', formData.content);
       submitData.append('reviewerName', formData.reviewerName);
       submitData.append('reviewerEmail', formData.reviewerEmail);
+      submitData.append('isAnonymous', formData.isAnonymous.toString());
+      submitData.append('submissionId', currentSubmissionId); // Add submission tracking
+      
+      console.log('Form data prepared:', {
+        business: id,
+        rating: formData.rating,
+        title: formData.title,
+        content: formData.content,
+        reviewerName: formData.reviewerName,
+        reviewerEmail: formData.reviewerEmail,
+        imageCount: formData.images.length
+      });
       
       // Add images
-      formData.images.forEach(image => {
+      formData.images.forEach((image, index) => {
+        console.log(`Adding image ${index + 1}:`, image.name);
         submitData.append('photos', image);
       });
 
+      console.log('Calling reviewService.createAnonymousReview...');
       const response = await reviewService.createAnonymousReview(submitData);
+      console.log('Review submission response:', response);
       
       setVerificationData(response.data);
       setShowVerification(true);
       
-      toast({
-        title: "Review Submitted!",
-        description: "Please check your email to verify and publish your review."
-      });
+      // Different messages for anonymous vs public reviews
+      if (formData.isAnonymous) {
+        toast({
+          title: "Anonymous Review Submitted!",
+          description: "Please check your email to verify and publish your review."
+        });
+      } else {
+        toast({
+          title: "Public Review Submitted!",
+          description: response.data.verificationRequired ? 
+            "Please check your email to verify your review." : 
+            "Your review has been published and is now live!"
+        });
+      }
+      
+      console.log('=== Review Submission Completed Successfully ===');
       
     } catch (error: any) {
-      console.error('Error submitting review:', error);
+      console.error('=== Review Submission Error ===');
+      console.error('Error object:', error);
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Network error:', error.message);
+      
+      // Determine error type and show appropriate message
+      let errorTitle = "Submission Failed";
+      let errorDescription = "Failed to submit review. Please try again.";
+      
+      if (error.status === 409) {
+        // Duplicate review error
+        errorTitle = "Duplicate Review Detected";
+        errorDescription = error.message || "You have already reviewed this business. Please wait 24 hours between reviews.";
+      } else if (error.status === 403) {
+        // Permission error (like business owner trying to review own business)
+        errorTitle = "Not Allowed";
+        errorDescription = error.message || "You are not allowed to perform this action.";
+      } else if (error.status === 429) {
+        // Rate limiting
+        errorTitle = "Too Many Requests";
+        errorDescription = "Please wait a moment before submitting another review.";
+      } else if (error.message.includes('Network error') || error.message.includes('timeout')) {
+        // Network issues
+        errorTitle = "Connection Problem";
+        errorDescription = "Please check your internet connection and try again. Your review has not been saved.";
+        setRetryCount(prev => prev + 1); // Enable retry button
+      } else if (error.status >= 500) {
+        // Server errors
+        errorTitle = "Server Error";
+        errorDescription = "Our servers are having issues. Please try again in a few moments.";
+      } else {
+        // Use error message from API or generic message
+        errorDescription = error.message || error.response?.data?.message || errorDescription;
+      }
+      
+      // Show error message
       toast({
         variant: "destructive",
-        title: "Submission Failed",
-        description: error.response?.data?.message || "Could not submit review. Please try again."
+        title: errorTitle,
+        description: errorDescription
       });
+      
+      // Reset verification state on error to prevent confusion
+      setShowVerification(false);
+      setVerificationData(null);
     } finally {
+      console.log('Setting submitting state to false');
       setSubmitting(false);
     }
+  };
+
+  // Retry submission function
+  const handleRetry = () => {
+    const syntheticEvent = {
+      preventDefault: () => {}
+    } as React.FormEvent;
+    handleSubmit(syntheticEvent, true);
   };
 
   if (loading) {
@@ -284,6 +423,18 @@ const WriteReview = () => {
                 No account registration required - just verify your email address.
               </AlertDescription>
             </Alert>
+
+            {/* Connection Status Indicator */}
+            {!isOnline && (
+              <Alert variant="destructive" className="mt-4">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+                  <AlertDescription>
+                    No internet connection. Please check your connection to submit your review.
+                  </AlertDescription>
+                </div>
+              </Alert>
+            )}
           </CardHeader>
           
           <CardContent>
@@ -442,11 +593,57 @@ const WriteReview = () => {
                 </div>
               </div>
 
+              {/* Privacy Options */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4">Privacy Settings</h3>
+                <div className="space-y-3">
+                  <label className="flex items-start space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="privacy"
+                      checked={formData.isAnonymous}
+                      onChange={() => handleInputChange('isAnonymous', true)}
+                      className="mt-1 w-4 h-4 text-[#ff1550] border-gray-300 focus:ring-[#ff1550]"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900">Anonymous Review</div>
+                      <div className="text-sm text-gray-600">Your name will not be displayed publicly with this review</div>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start space-x-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="privacy"
+                      checked={!formData.isAnonymous}
+                      onChange={() => handleInputChange('isAnonymous', false)}
+                      className="mt-1 w-4 h-4 text-[#ff1550] border-gray-300 focus:ring-[#ff1550]"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900">Public Review</div>
+                      <div className="text-sm text-gray-600">Your name will be displayed publicly with this review</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Connection Status */}
+              {!isOnline && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+                    <p className="text-yellow-800 text-sm">
+                      No internet connection. Please check your connection to submit your review.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
-              <div className="pt-4">
+              <div className="pt-4 space-y-3">
                 <Button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !isOnline}
                   className="w-full md:w-auto"
                 >
                   {submitting ? (
@@ -461,6 +658,20 @@ const WriteReview = () => {
                     </>
                   )}
                 </Button>
+                
+                {/* Retry button for failed submissions */}
+                {retryCount > 0 && !submitting && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRetry}
+                    disabled={!isOnline}
+                    className="ml-3"
+                  >
+                    <div className="w-4 h-4 mr-2">🔄</div>
+                    Retry ({retryCount}/3)
+                  </Button>
+                )}
               </div>
             </form>
           </CardContent>

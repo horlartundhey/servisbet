@@ -94,6 +94,29 @@ const reviewSchema = new mongoose.Schema({
     }
   },
   
+  // Public Reviewer Fields (for non-anonymous reviews)
+  reviewerName: {
+    type: String,
+    trim: true,
+    maxlength: 50,
+    required: function() { return !this.isAnonymous && !this.user; } // Required if not anonymous and not authenticated
+  },
+  reviewerEmail: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    required: function() { return !this.isAnonymous && !this.user; }, // Required if not anonymous and not authenticated
+    validate: {
+      validator: function(email) {
+        if (!this.isAnonymous && !this.user && email) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+        return true;
+      },
+      message: 'Please provide a valid email address'
+    }
+  },
+  
   business: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'BusinessProfile', 
@@ -342,13 +365,13 @@ reviewSchema.virtual('hasBusinessResponse').get(function() {
   return this.businessResponse && this.businessResponse.content;
 });
 
-// Get reviewer display info (anonymous or authenticated)
+// Get reviewer display info (anonymous, authenticated, or public)
 reviewSchema.virtual('reviewerInfo').get(function() {
   if (this.isAnonymous) {
     return {
-      name: this.anonymousReviewer.name,
-      email: this.anonymousReviewer.email,
-      isVerified: this.anonymousReviewer.isVerified,
+      name: this.anonymousReviewer?.name || 'Anonymous',
+      email: this.anonymousReviewer?.email,
+      isVerified: this.anonymousReviewer?.isVerified || false,
       type: 'anonymous'
     };
   }
@@ -359,6 +382,14 @@ reviewSchema.virtual('reviewerInfo').get(function() {
       avatar: this.user.avatar,
       isVerified: true,
       type: 'authenticated'
+    };
+  }
+  if (this.reviewerName) {
+    return {
+      name: this.reviewerName,
+      email: this.reviewerEmail,
+      isVerified: true, // Public reviews are considered verified
+      type: 'public'
     };
   }
   return {
@@ -373,21 +404,30 @@ reviewSchema.virtual('needsVerification').get(function() {
 });
 
 // ✅ MIDDLEWARE
-// Validate anonymous vs authenticated review requirements
+// Validate anonymous vs authenticated vs public review requirements
 reviewSchema.pre('validate', function(next) {
-  // For anonymous reviews, ensure all required anonymous fields are present
   if (this.isAnonymous) {
-    if (!this.anonymousReviewer.name || !this.anonymousReviewer.email) {
+    // For anonymous reviews, ensure all required anonymous fields are present
+    if (!this.anonymousReviewer?.name || !this.anonymousReviewer?.email) {
       return next(new Error('Anonymous reviews require name and email'));
     }
-    // Anonymous reviews don't need user
+    // Clear other reviewer fields for anonymous reviews
     this.user = undefined;
-  } else {
+    this.reviewerName = undefined;
+    this.reviewerEmail = undefined;
+  } else if (this.user) {
     // For authenticated reviews, ensure user is present
-    if (!this.user) {
-      return next(new Error('Authenticated reviews require a user'));
+    // Clear anonymous and public reviewer fields for authenticated reviews
+    this.anonymousReviewer = undefined;
+    this.reviewerName = undefined;
+    this.reviewerEmail = undefined;
+  } else {
+    // For public (non-anonymous, non-authenticated) reviews
+    if (!this.reviewerName || !this.reviewerEmail) {
+      return next(new Error('Public reviews require reviewer name and email'));
     }
-    // Clear anonymous fields for authenticated reviews
+    // Clear other fields for public reviews
+    this.user = undefined;
     this.anonymousReviewer = undefined;
   }
   next();

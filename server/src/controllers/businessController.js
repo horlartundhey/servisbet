@@ -122,6 +122,7 @@ const getBusinesses = asyncHandler(async (req, res) => {
     
     return {
       _id: business._id,
+      slug: business.businessSlug,
       name: business.businessName,
       businessName: business.businessName,
       description: business.businessDescription,
@@ -209,6 +210,7 @@ const getBusiness = asyncHandler(async (req, res) => {
   
   const transformedBusiness = {
     _id: business._id,
+    slug: business.businessSlug,
     name: business.businessName,
     businessName: business.businessName,
     description: business.businessDescription,
@@ -379,19 +381,69 @@ const setPrimaryBusiness = asyncHandler(async (req, res) => {
 // @route   GET /api/business/slug/:slug
 // @access  Public
 const getBusinessBySlug = asyncHandler(async (req, res) => {
-  const business = await BusinessProfile.findBySlug(req.params.slug)
-    .populate('owner', 'name email');
+  console.log('🔍 getBusinessBySlug called with slug:', req.params.slug);
+  
+  const business = await BusinessProfile.findOne({
+    businessSlug: req.params.slug,
+    verificationStatus: 'approved',
+    isActive: true
+  }).populate('owner', 'firstName lastName email');
 
+  console.log('🏢 Business found:', business ? 'YES' : 'NO');
+  
   if (!business) {
+    console.log('❌ Business not found with slug:', req.params.slug);
     return res.status(404).json({
       success: false,
       message: 'Business not found'
     });
   }
 
+  console.log('✅ Returning business data for:', business.businessName);
+  
+  // Transform BusinessProfile data to match frontend expectations (same as getBusiness)
+  const hasCompleteImages = business.images?.logo && 
+                           business.images?.cover && 
+                           business.images?.gallery?.length >= 2;
+  
+  const dummyImages = hasCompleteImages ? null : generateDummyImages(business.category);
+  
+  const transformedBusiness = {
+    _id: business._id,
+    slug: business.businessSlug,
+    name: business.businessName,
+    businessName: business.businessName,
+    description: business.businessDescription,
+    category: business.category,
+    businessCategory: business.category,
+    email: business.businessEmail,
+    phone: business.businessPhone,
+    website: business.website,
+    address: business.address,
+    images: hasCompleteImages ? [
+      business.images.logo,
+      business.images.cover,
+      ...(business.images.gallery || [])
+    ].filter(Boolean) : [
+      dummyImages.logo,
+      dummyImages.cover,
+      ...dummyImages.gallery
+    ],
+    logo: business.images?.logo || dummyImages?.logo,
+    cover: business.images?.cover || dummyImages?.cover,
+    averageRating: business.stats?.averageRating || 0,
+    totalReviews: business.stats?.totalReviews || 0,
+    verificationStatus: business.verificationStatus,
+    isActive: business.isActive,
+    owner: business.owner,
+    createdAt: business.createdAt,
+    updatedAt: business.updatedAt,
+    hasRealImages: hasCompleteImages
+  };
+
   res.status(200).json({
     success: true,
-    data: business
+    data: transformedBusiness
   });
 });
 

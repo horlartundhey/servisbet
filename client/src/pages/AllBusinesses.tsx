@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import BusinessCard from '../components/BusinessCard';
+import { CategoryBreadcrumb } from '../components/Breadcrumb';
+import { SEOManager } from '../utils/seo';
 import { businessService, Business as ApiBusiness } from '../services/businessService';
 
 // Transform function for business data
 const transformBusiness = (apiBusiness: ApiBusiness) => ({
   id: apiBusiness._id,
+  slug: apiBusiness.slug,
   name: apiBusiness.name,
   category: apiBusiness.category,
   rating: apiBusiness.averageRating || 0,
@@ -96,6 +99,18 @@ const AllBusinesses = () => {
         
         setBusinesses(transformedBusinesses);
         setTotalPages(result.totalPages);
+
+        // Update SEO based on current filters
+        if (selectedCategory && selectedCategory !== 'All Categories') {
+          SEOManager.setCategoryPageMeta(selectedCategory);
+        } else if (searchQuery) {
+          SEOManager.setSearchPageMeta(searchQuery);
+        } else {
+          SEOManager.updateMetaTags({
+            title: 'Find Local Businesses - Servisbeta Business Directory',
+            description: 'Discover the best local businesses in your area. Browse restaurants, services, healthcare providers, and more with verified customer reviews.'
+          });
+        }
         setTotalCount(result.total);
 
       } catch (error) {
@@ -152,8 +167,9 @@ const AllBusinesses = () => {
     updateURLParams({ page: page.toString() });
   };
 
-  const handleBusinessClick = (businessId: string) => {
-    navigate(`/business/${businessId}`);
+  const handleBusinessClick = (businessId: string, business?: any) => {
+    const identifier = business?.slug || businessId;
+    navigate(`/business/${identifier}`);
   };
 
   const renderPagination = () => {
@@ -211,6 +227,13 @@ const AllBusinesses = () => {
       {/* Header */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-6">
+          {/* Breadcrumb */}
+          {selectedCategory && selectedCategory !== 'All Categories' ? (
+            <CategoryBreadcrumb category={selectedCategory} className="mb-4" />
+          ) : (
+            <CategoryBreadcrumb category="All Businesses" className="mb-4" />
+          )}
+          
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">All Businesses</h1>

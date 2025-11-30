@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /business-dashboard
+Disallow: /api/
+Disallow: /auth
+Disallow: /profile
+
+# Allow search engines to access important pages
+Allow: /
+Allow: /businesses
+Allow: /business/*
+Allow: /search
+Allow: /pricing
+
+# Sitemap location
+Sitemap: https://servisbeta.com/sitemap.xml
+
+# Crawl-delay for bots (optional)
+Crawl-delay: 1
+
+# Block specific bots if needed
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
