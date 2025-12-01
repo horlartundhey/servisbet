@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertTriangle, MessageSquare, Eye, CheckCircle, XCircle, Clock, Flag, FileText, Image } from "lucide-react";
+import { AlertTriangle, MessageSquare, Eye, CheckCircle, XCircle, Clock, Flag, FileText, Image, Trash2 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 // Document Preview Component
@@ -178,6 +178,8 @@ const AdminDashboard = () => {
     internalNotes: ''
   });
   const [communicationMessage, setCommunicationMessage] = useState('');
+  const [businessToDelete, setBusinessToDelete] = useState<any>(null);
+  const [deletingBusiness, setDeletingBusiness] = useState(false);
 
   // Admin action handlers
   const handleUserAction = async (userId: string, action: string) => {
@@ -212,6 +214,46 @@ const AdminDashboard = () => {
       setDashboardData(dashboardData);
     } catch (error) {
       console.error('Error performing business action:', error);
+    }
+  };
+
+  const handleDeleteBusiness = async () => {
+    if (!businessToDelete) return;
+    
+    try {
+      setDeletingBusiness(true);
+      const businessId = businessToDelete._id;
+      const businessName = businessToDelete.businessName;
+      
+      console.log(`Admin ${user.firstName} ${user.lastName} deleting business ${businessId}`);
+      
+      await businessService.deleteBusiness(businessId);
+      
+      // Immediately remove from local state for instant UI update
+      setAllBusinesses(prev => prev.filter(b => b._id !== businessId));
+      
+      // Close dialogs immediately
+      setBusinessToDelete(null);
+      if (selectedBusiness?._id === businessId) {
+        setSelectedBusiness(null);
+      }
+      
+      // Refresh dashboard data in background
+      Promise.all([
+        adminService.getDashboardStats(),
+        loadAllBusinesses()
+      ]).then(([dashboardData]) => {
+        setDashboardData(dashboardData);
+        console.log(`✅ Business "${businessName}" deleted successfully`);
+      }).catch(error => {
+        console.error('Error refreshing data after delete:', error);
+      });
+      
+    } catch (error: any) {
+      console.error('Error deleting business:', error);
+      alert(error.response?.data?.message || 'Failed to delete business. Please try again.');
+    } finally {
+      setDeletingBusiness(false);
     }
   };
 
@@ -858,6 +900,14 @@ const AdminDashboard = () => {
                               >
                                 {business.verificationStatus === 'approved' ? 'Unverify' : 'Verify'}
                               </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => setBusinessToDelete(business)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1037,6 +1087,60 @@ const AdminDashboard = () => {
                           Close
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!businessToDelete} onOpenChange={open => { if (!open) setBusinessToDelete(null); }}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-red-600">
+                    <AlertTriangle className="w-5 h-5" />
+                    Delete Business
+                  </DialogTitle>
+                </DialogHeader>
+                {businessToDelete && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Are you sure you want to delete <span className="font-semibold text-foreground">"{businessToDelete.businessName}"</span>? 
+                    </p>
+                    <div className="bg-red-50 border border-red-200 rounded-md p-3 space-y-2">
+                      <p className="text-sm font-medium text-red-800">This action will:</p>
+                      <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                        <li>Remove the business from the catalogue</li>
+                        <li>Deactivate the business profile</li>
+                        <li>Make the business inaccessible to users</li>
+                      </ul>
+                      <p className="text-xs text-red-600 font-medium mt-2">This action cannot be undone.</p>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setBusinessToDelete(null)}
+                        disabled={deletingBusiness}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="destructive"
+                        onClick={handleDeleteBusiness}
+                        disabled={deletingBusiness}
+                      >
+                        {deletingBusiness ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Business
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}

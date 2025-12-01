@@ -49,7 +49,7 @@ app.use('/api/auth', require('./routes/auth'));
 // ✅ Business routes work
 app.use('/api/business', require('./routes/business'));
 // ✅ Business verification, profile, review work
-app.use('/api/business', require('./routes/businessVerification'));
+app.use('/api/business-verification', require('./routes/businessVerification'));
 app.use('/api/business-profile', require('./routes/businessProfile'));
 app.use('/api/review', require('./routes/review'));
 // Testing remaining routes

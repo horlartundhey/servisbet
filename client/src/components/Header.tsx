@@ -127,11 +127,11 @@ const Header = () => {
             <Link to="/search" className="text-foreground/60 hover:text-primary transition-colors text-sm font-medium">
               Browse Businesses
             </Link>
-            {!isAuthenticated || user?.role !== 'admin' ? (
+            {isAuthenticated && user?.role === 'business' && (
               <Link to="/business-dashboard" className="text-foreground hover:text-primary transition-colors font-medium">
-                Client Portal
+                Dashboard
               </Link>
-            ) : null}
+            )}
             {user?.role === 'admin' && (
               <Link to="/admin" className="text-foreground hover:text-primary transition-colors font-medium">
                 Admin
@@ -248,15 +248,15 @@ const Header = () => {
               >
                 Browse Businesses
               </Link>
-              {!isAuthenticated || user?.role !== 'admin' ? (
+              {isAuthenticated && user?.role === 'business' && (
                 <Link 
                   to="/business-dashboard" 
                   className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Client Portal
+                  Dashboard
                 </Link>
-              ) : null}
+              )}
               {user?.role === 'admin' && (
                 <Link 
                   to="/admin" 

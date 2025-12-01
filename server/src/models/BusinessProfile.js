@@ -278,7 +278,7 @@ businessProfileSchema.statics.findBySlug = function(slug) {
 // Method to deactivate business (soft delete)
 businessProfileSchema.methods.deactivate = function() {
   this.isActive = false;
-  return this.save();
+  return this.save({ validateBeforeSave: false });
 };
 
 // Method to set as primary business

@@ -23,14 +23,14 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     flaggedReviews
   ] = await Promise.all([
     User.countDocuments(),
-    BusinessProfile.countDocuments(),
+    BusinessProfile.countDocuments({ isActive: true }),
     Review.countDocuments(),
-    BusinessProfile.countDocuments({ verificationStatus: 'pending' }),
+    BusinessProfile.countDocuments({ verificationStatus: 'pending', isActive: true }),
     ReviewDispute.countDocuments({ status: { $in: ['under_review', 'requires_info'] } }),
     ReviewDispute.countDocuments({ status: 'pending' }),
     Flag.countDocuments({ status: 'pending' }),
     User.find().sort('-createdAt').limit(5).select('firstName lastName email role createdAt'),
-    BusinessProfile.find().sort('-createdAt').limit(5).select('businessName businessCategory owner createdAt verificationStatus').populate('owner', 'firstName lastName email'),
+    BusinessProfile.find({ isActive: true }).sort('-createdAt').limit(5).select('businessName businessCategory owner createdAt verificationStatus').populate('owner', 'firstName lastName email'),
     Review.find({ 
       $or: [
         { status: 'flagged' },
@@ -47,11 +47,13 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
   // Business statistics by category
   const businessesByCategory = await BusinessProfile.aggregate([
+    { $match: { isActive: true } },
     { $group: { _id: '$businessCategory', count: { $sum: 1 } } }
   ]);
 
   // Business verification statistics
   const businessesByVerificationStatus = await BusinessProfile.aggregate([
+    { $match: { isActive: true } },
     { $group: { _id: '$verificationStatus', count: { $sum: 1 } } }
   ]);
 
@@ -165,7 +167,8 @@ const updateUserStatus = asyncHandler(async (req, res) => {
 const getBusinesses = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, category, status, search } = req.query;
 
-  let query = {};
+  // Only show active businesses by default
+  let query = { isActive: true };
   
   if (category) query.businessCategory = category;
   if (status) query.verificationStatus = status;

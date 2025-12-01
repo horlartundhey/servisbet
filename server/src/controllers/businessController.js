@@ -507,12 +507,16 @@ const deleteBusiness = asyncHandler(async (req, res) => {
     });
   }
 
-  // Soft delete
-  await business.deactivate();
+  // Soft delete - use updateOne to bypass validation
+  await BusinessProfile.updateOne(
+    { _id: req.params.id },
+    { $set: { isActive: false } },
+    { runValidators: false }
+  );
 
   res.status(200).json({
     success: true,
-    message: 'Business deactivated successfully'
+    message: 'Business deleted successfully'
   });
 });
 
