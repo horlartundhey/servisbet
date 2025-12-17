@@ -8,6 +8,7 @@ import ScrollToTop from "./components/ScrollToTop";
 
 // Lazy load pages
 const Index = lazy(() => import("./pages/Index"));
+const DigitalServices = lazy(() => import("./pages/DigitalServices"));
 const BusinessDetail = lazy(() => import("./pages/BusinessDetail"));
 const AllBusinesses = lazy(() => import("./pages/AllBusinesses"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -57,6 +58,7 @@ const App = () => {
               <Suspense fallback={<Loading />}>
                 <Routes>
                   <Route path="/" element={<Index />} />
+                  <Route path="/digital-services" element={<DigitalServices />} />
                   <Route path="/businesses" element={<AllBusinesses />} />
                   <Route path="/business/:id" element={<BusinessDetail />} />
                   <Route path="/search" element={<SearchResults />} />

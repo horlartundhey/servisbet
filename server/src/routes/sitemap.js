@@ -16,6 +16,7 @@ router.get('/sitemap.xml', asyncHandler(async (req, res) => {
     // Define static pages
     const staticPages = [
       { url: '/', priority: '1.0', changefreq: 'daily' },
+      { url: '/digital-services', priority: '0.9', changefreq: 'daily' },
       { url: '/businesses', priority: '0.9', changefreq: 'daily' },
       { url: '/search', priority: '0.8', changefreq: 'weekly' },
       { url: '/pricing', priority: '0.7', changefreq: 'monthly' },

@@ -167,6 +167,13 @@ const AdminDashboard = () => {
   const [businessFilter, setBusinessFilter] = useState('all');
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
 
+  // User management state
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userFilter, setUserFilter] = useState('all');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [suspendingUser, setSuspendingUser] = useState(false);
+
   // Dispute management state
   const [disputes, setDisputes] = useState<ReviewDispute[]>([]);
   const [selectedDispute, setSelectedDispute] = useState<ReviewDispute | null>(null);
@@ -183,18 +190,29 @@ const AdminDashboard = () => {
 
   // Admin action handlers
   const handleUserAction = async (userId: string, action: string) => {
-    try {
-      console.log(`Admin ${user.firstName} ${user.lastName} performing ${action} on user ${userId}`);
-      if (action === 'suspend') {
-        await adminService.updateUserStatus(userId, 'suspended');
-      } else if (action === 'activate') {
-        await adminService.updateUserStatus(userId, 'active');
+    const userToModify = allUsers.find(u => u._id === userId);
+    if (!userToModify) return;
+
+    if (action === 'edit') {
+      setSelectedUser(userToModify);
+    } else if (action === 'suspend' || action === 'activate') {
+      // Directly update the user status
+      try {
+        setSuspendingUser(true);
+        const newStatus = action === 'suspend' ? 'suspended' : 'active';
+        
+        await adminService.updateUserStatus(userId, newStatus);
+        
+        console.log(`✅ User ${newStatus === 'suspended' ? 'suspended' : 'activated'} successfully`);
+        
+        // Refresh user list
+        await loadAllUsers();
+      } catch (error: any) {
+        console.error('Error updating user status:', error);
+        alert(error.response?.data?.message || 'Failed to update user status');
+      } finally {
+        setSuspendingUser(false);
       }
-      // Refresh dashboard data
-      const data = await adminService.getDashboardStats();
-      setDashboardData(data);
-    } catch (error) {
-      console.error('Error performing user action:', error);
     }
   };
 
@@ -395,6 +413,26 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadAllUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const params: any = { limit: 50 }; // Get more users for management
+      if (userFilter !== 'all') {
+        params.role = userFilter;
+      }
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      const response = await adminService.getUsers(params);
+      setAllUsers(response.data);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      setAllUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   // Load admin dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -411,6 +449,7 @@ const AdminDashboard = () => {
 
     fetchDashboardData();
     loadAllBusinesses();
+    loadAllUsers();
     loadDisputes();
   }, [disputeFilter]);
 
@@ -418,6 +457,11 @@ const AdminDashboard = () => {
   useEffect(() => {
     loadAllBusinesses();
   }, [businessFilter]);
+
+  // Reload users when filter or search changes
+  useEffect(() => {
+    loadAllUsers();
+  }, [userFilter, searchTerm]);
 
 
 
@@ -760,6 +804,16 @@ const AdminDashboard = () => {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>User Management</CardTitle>
                 <div className="flex gap-2">
+                  <select
+                    value={userFilter}
+                    onChange={(e) => setUserFilter(e.target.value as 'all' | 'user' | 'business' | 'admin')}
+                    className="px-3 py-2 border rounded-md"
+                  >
+                    <option value="all">All Users</option>
+                    <option value="user">Users</option>
+                    <option value="business">Business Owners</option>
+                    <option value="admin">Admins</option>
+                  </select>
                   <Input
                     placeholder="Search users..."
                     value={searchTerm}
@@ -781,12 +835,16 @@ const AdminDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loadingDashboard ? (
+                    {loadingUsers ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">Loading...</TableCell>
+                        <TableCell colSpan={5} className="text-center py-8">Loading users...</TableCell>
+                      </TableRow>
+                    ) : allUsers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">No users found</TableCell>
                       </TableRow>
                     ) : (
-                      dashboardData?.recentActivity.recentUsers.map((user) => (
+                      allUsers.map((user) => (
                         <TableRow key={user._id}>
                           <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
                           <TableCell>{user.email}</TableCell>
@@ -795,6 +853,9 @@ const AdminDashboard = () => {
                             <Badge variant="default">
                               {user.role}
                             </Badge>
+                            {user.status === 'suspended' && (
+                              <Badge variant="destructive" className="ml-2">Suspended</Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
@@ -802,25 +863,75 @@ const AdminDashboard = () => {
                                 variant="outline" 
                                 size="sm"
                                 onClick={() => handleUserAction(user._id, 'edit')}
+                                disabled={suspendingUser}
                               >
                                 Edit
                               </Button>
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleUserAction(user._id, 'suspend')}
+                                onClick={() => handleUserAction(user._id, user.status === 'suspended' ? 'activate' : 'suspend')}
+                                className={user.status === 'suspended' ? 'text-green-600 hover:text-green-700' : ''}
+                                disabled={suspendingUser}
                               >
-                                Suspend
+                                {suspendingUser ? (
+                                  <>
+                                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1"></div>
+                                    {user.status === 'suspended' ? 'Activating...' : 'Suspending...'}
+                                  </>
+                                ) : (
+                                  user.status === 'suspended' ? 'Activate' : 'Suspend'
+                                )}
                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
-                      )) || []
+                      ))
                     )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+
+            {/* User Edit Dialog */}
+            <Dialog open={!!selectedUser} onOpenChange={open => { if (!open) setSelectedUser(null); }}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Edit User</DialogTitle>
+                </DialogHeader>
+                {selectedUser && (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-medium">Name</p>
+                      <p className="text-sm text-muted-foreground">{selectedUser.firstName} {selectedUser.lastName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Email</p>
+                      <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Role</p>
+                      <Badge variant="default">{selectedUser.role}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Status</p>
+                      <Badge variant={selectedUser.status === 'suspended' ? 'destructive' : 'default'}>
+                        {selectedUser.status || 'active'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Joined</p>
+                      <p className="text-sm text-muted-foreground">{new Date(selectedUser.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button variant="outline" onClick={() => setSelectedUser(null)}>
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="businesses" className="space-y-6">

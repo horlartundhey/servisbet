@@ -1,15 +1,15 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import HeroSection from '../components/HeroSection';
-import ServicesSection from '../components/ServicesSection';
-import ProcessSection from '../components/ProcessSection';
+import { useNavigate } from 'react-router-dom';
+import { Star, TrendingUp, Shield, Users, CheckCircle, ArrowRight, Quote, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import BusinessGrid from '../components/BusinessGrid';
 import ReviewSlider from '../components/ReviewSlider';
 import { businessService, Business as ApiBusiness } from '../services/businessService';
 import { reviewService, Review as ApiReview } from '../services/reviewService';
 
-// Transform functions for interface compatibility
+// Transform functions
 const transformBusiness = (apiBusiness: ApiBusiness) => ({
   id: apiBusiness._id,
   slug: apiBusiness.slug,
@@ -22,21 +22,16 @@ const transformBusiness = (apiBusiness: ApiBusiness) => ({
 });
 
 const transformReview = (apiReview: ApiReview) => {
-  // Generate customer name
   const customerName = apiReview.user 
     ? `${apiReview.user.firstName} ${apiReview.user.lastName}`
     : apiReview.reviewerName || 'Anonymous User';
   
-  // Generate avatar - use UI Avatars service for personalized avatars
   let customerAvatar;
   if (apiReview.user?.avatar) {
-    // User has uploaded avatar
     customerAvatar = apiReview.user.avatar;
   } else if (apiReview.user) {
-    // Authenticated user without avatar - blue background
     customerAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName)}&background=3b82f6&color=fff&size=100`;
   } else {
-    // Anonymous user - gray background
     customerAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(customerName)}&background=6b7280&color=fff&size=100`;
   }
   
@@ -58,86 +53,56 @@ const transformReview = (apiReview: ApiReview) => {
 
 const Index = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [businesses, setBusinesses] = useState<ReturnType<typeof transformBusiness>[]>([]);
   const [reviews, setReviews] = useState<ReturnType<typeof transformReview>[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Handle hash scrolling after content loads
-  useEffect(() => {
-    if (!loading && location.hash) {
-      const id = location.hash.replace('#', '');
-      const scrollToSection = () => {
-        const element = document.getElementById(id);
-        if (element) {
-          const headerOffset = 80;
-          const elementPosition = element.getBoundingClientRect().top;
-          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-
-          window.scrollTo({
-            top: offsetPosition,
-            behavior: 'smooth'
-          });
-          return true;
-        }
-        return false;
-      };
-
-      // Try scrolling with multiple attempts
-      setTimeout(() => {
-        if (!scrollToSection()) {
-          setTimeout(scrollToSection, 200);
-        }
-      }, 100);
-    }
-  }, [loading, location.hash]);
+  const [stats, setStats] = useState({
+    totalReviews: '50,000+',
+    businesses: '1,000+',
+    averageRating: '4.8',
+    responseRate: '95%'
+  });
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        console.log('Loading businesses...');
-        // Load featured businesses (top rated, limited)
-        const businessResult = await businessService.getBusinesses({ 
-          limit: 6,
-          page: 1 
-        });
-        console.log('Business result:', businessResult);
-        const transformedBusinesses = businessResult.businesses.map(transformBusiness);
-        console.log('Transformed businesses:', transformedBusinesses);
-        setBusinesses(transformedBusinesses);
-
-        console.log('Loading recent reviews...');
-        // Load recent reviews across all businesses
-        const reviewResult = await reviewService.getReviews({ 
-          limit: 10,
-          page: 1,
-          sortBy: 'date',
-          sortOrder: 'desc'
-        });
-        console.log('Review result:', reviewResult);
-        const transformedReviews = reviewResult.reviews.map(transformReview);
-        console.log('Transformed reviews:', transformedReviews);
-        setReviews(transformedReviews);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
   }, []);
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    // Navigate to search results with the query
-    navigate(`/search?q=${encodeURIComponent(query)}`);
+  const loadData = async () => {
+    try {
+      // Load top 3 businesses
+      const businessResult = await businessService.getBusinesses({ 
+        limit: 3,
+        page: 1,
+        sortBy: 'rating'
+      });
+      setBusinesses(businessResult.businesses.map(transformBusiness));
+
+      // Load latest reviews
+      const reviewResult = await reviewService.getReviews({ 
+        limit: 12,
+        page: 1,
+        sortBy: 'date',
+        sortOrder: 'desc'
+      });
+      setReviews(reviewResult.reviews.map(transformReview));
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBusinessClick = (businessId: string, business?: any) => {
     const identifier = business?.slug || businessId;
     navigate(`/business/${identifier}`);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
   };
 
   if (loading) {
@@ -153,79 +118,269 @@ const Index = () => {
 
   return (
     <div className="bg-white">
-      {/* Hero Section - Agency Focused */}
-      <HeroSection />
-      
-      {/* Services Section - Primary Focus */}
-      <div id="services">
-        <ServicesSection />
-      </div>
-
-      {/* Process Section - Show our methodology */}
-      <div id="process">
-        <ProcessSection />
-      </div>
-
-      {/* Client Success & Trust Section */}
-      <section className="py-16 bg-gray-900 text-white">
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto text-center">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Delivering Results That Matter
-            </h2>
-            <p className="text-xl mb-12 text-gray-300">
-              Our clients trust us to transform their digital presence and drive measurable growth
-            </p>
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 text-white py-24 overflow-hidden">
+        <div className="absolute inset-0 bg-grid-white/5"></div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
+              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+              <span className="text-sm font-semibold">Trusted by thousands of businesses</span>
+            </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-              <div className="text-center">
-                <div className="text-4xl font-bold mb-2">200+</div>
-                <div className="text-gray-300">Projects Delivered</div>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+              Real Reviews.<br />Real Trust.
+            </h1>
+            
+            <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-2xl mx-auto">
+              Discover authentic reviews from real customers. Help others make informed decisions with your feedback.
+            </p>
+
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search for businesses, services, or locations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-6 text-lg rounded-full border-0 shadow-xl text-gray-900"
+                />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-6 w-6" />
+                <Button
+                  type="submit"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full px-8"
+                  size="lg"
+                >
+                  Search
+                </Button>
               </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold mb-2">95%</div>
-                <div className="text-gray-300">Client Retention</div>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold mb-2">50K+</div>
-                <div className="text-gray-300">Reviews Managed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold mb-2">24/7</div>
-                <div className="text-gray-300">Support Available</div>
-              </div>
+            </form>
+
+            {/* <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg" 
+                className="bg-white text-primary hover:bg-gray-100 text-lg px-8 py-6"
+                onClick={() => navigate('/digital-services')}
+              >
+                Browse Businesses
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="border-2 border-white text-white hover:bg-white/10 text-lg px-8 py-6"
+                onClick={() => navigate('/auth')}
+              >
+                Write a Review
+              </Button>
+            </div> */}
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto">
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">{stats.totalReviews}</div>
+              <div className="text-muted-foreground font-medium">Reviews Posted</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">{stats.businesses}</div>
+              <div className="text-muted-foreground font-medium">Businesses Listed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">{stats.averageRating}</div>
+              <div className="text-muted-foreground font-medium">Average Rating</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-primary mb-2">{stats.responseRate}</div>
+              <div className="text-muted-foreground font-medium">Response Rate</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              How It Works
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Simple, transparent, and powerful review system
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <Card className="text-center p-8 hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Users className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">Find Businesses</h3>
+                <p className="text-muted-foreground">
+                  Search and discover verified businesses in your area with authentic reviews
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="text-center p-8 hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Star className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">Share Experience</h3>
+                <p className="text-muted-foreground">
+                  Write detailed reviews and help others make informed decisions
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="text-center p-8 hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <TrendingUp className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">Build Trust</h3>
+                <p className="text-muted-foreground">
+                  Help businesses improve and build transparent relationships
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Latest Reviews */}
+      {reviews.length > 0 && (
+        <section className="py-20 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                Latest Reviews
+              </h2>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                See what our community is saying
+              </p>
+            </div>
+            
+            <ReviewSlider reviews={reviews.slice(0, 8)} />
+            
+            <div className="text-center mt-10">
+              <Button 
+                size="lg"
+                onClick={() => navigate('/digital-services')}
+                className="px-8"
+              >
+                View All Reviews
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Top Rated Businesses */}
+      {businesses.length > 0 && (
+        <section className="py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                Top Rated Businesses
+              </h2>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                Discover businesses with the best ratings
+              </p>
+            </div>
+            
+            <BusinessGrid businesses={businesses} onBusinessClick={handleBusinessClick} />
+            
+            <div className="text-center mt-10">
+              <Button 
+                size="lg"
+                variant="outline"
+                onClick={() => navigate('/businesses')}
+                className="px-8"
+              >
+                See All Businesses
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Why Choose Us */}
+      <section className="py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">
+                Why Servisbeta?
+              </h2>
+              <p className="text-xl text-white/80">
+                The most trusted review platform
+              </p>
             </div>
 
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 max-w-3xl mx-auto border border-white/10">
-              <h3 className="text-2xl font-semibold mb-6">What Sets Us Apart</h3>
-              <div className="grid md:grid-cols-2 gap-6 text-left">
-                <div className="flex items-start space-x-3">
-                  <span className="text-green-400 text-xl flex-shrink-0">✓</span>
-                  <div>
-                    <h4 className="font-semibold mb-1">Data-Driven Strategy</h4>
-                    <p className="text-sm text-gray-300">Every decision backed by analytics and insights</p>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+                    <Shield className="h-6 w-6 text-primary" />
                   </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-green-400 text-xl flex-shrink-0">✓</span>
-                  <div>
-                    <h4 className="font-semibold mb-1">Expert Team</h4>
-                    <p className="text-sm text-gray-300">Certified designers, developers, and marketers</p>
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Verified Reviews</h3>
+                  <p className="text-white/70">
+                    All reviews are from real customers who have actually used the services
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="h-6 w-6 text-primary" />
                   </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-green-400 text-xl flex-shrink-0">✓</span>
-                  <div>
-                    <h4 className="font-semibold mb-1">Transparent Process</h4>
-                    <p className="text-sm text-gray-300">Clear communication and regular progress updates</p>
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Transparent Platform</h3>
+                  <p className="text-white/70">
+                    No fake reviews, no manipulation - just honest feedback
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+                    <Users className="h-6 w-6 text-primary" />
                   </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-green-400 text-xl flex-shrink-0">✓</span>
-                  <div>
-                    <h4 className="font-semibold mb-1">Integrated Platform</h4>
-                    <p className="text-sm text-gray-300">Built-in review system to showcase your success</p>
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Community Driven</h3>
+                  <p className="text-white/70">
+                    Built by users, for users to help everyone make better choices
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+                    <Star className="h-6 w-6 text-primary" />
                   </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Business Engagement</h3>
+                  <p className="text-white/70">
+                    Businesses can respond and show they care about customer feedback
+                  </p>
                 </div>
               </div>
             </div>
@@ -233,95 +388,25 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Recent Client Testimonials - Subtle Review Platform Integration */}
-      {reviews.length > 0 && (
-        <section className="py-16 bg-gray-50">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <span className="text-sm font-semibold text-primary uppercase tracking-wider mb-2 block">
-                Client Success Stories
-              </span>
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                What Our Clients Say
-              </h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Real feedback from businesses we've helped grow digitally
-              </p>
-            </div>
-            <ReviewSlider reviews={reviews.slice(0, 6)} />
-            <div className="text-center mt-8">
-              <button
-                onClick={() => navigate('/search')}
-                className="text-primary hover:text-primary/80 font-semibold inline-flex items-center transition-colors"
-              >
-                Browse more verified reviews
-                <svg className="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Featured Client Projects - Using Business Data */}
-      {businesses.length > 0 && (
-        <section className="py-16 bg-white">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <span className="text-sm font-semibold text-primary uppercase tracking-wider mb-2 block">
-                Our Portfolio
-              </span>
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                Featured Client Projects
-              </h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Businesses we've helped establish a strong digital presence
-              </p>
-            </div>
-            <BusinessGrid businesses={businesses.slice(0, 6)} onBusinessClick={handleBusinessClick} />
-            <div className="text-center mt-8">
-              <button
-                onClick={() => navigate('/businesses')}
-                className="text-primary hover:text-primary/80 font-semibold inline-flex items-center transition-colors"
-              >
-                View all client projects
-                <svg className="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Final Call to Action */}
-      <section className="py-20 bg-secondary text-white">
-        <div className="container mx-auto px-4 text-center">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Ready to Transform Your Business?
+      {/* CTA Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <Quote className="h-16 w-16 text-primary mx-auto mb-6 opacity-20" />
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Ready to Share Your Experience?
             </h2>
-            <p className="text-xl mb-10 text-white/90">
-              Let's create something extraordinary together. Schedule a free consultation to discuss your digital goals.
+            <p className="text-xl text-gray-600 mb-10">
+              Your review can help thousands of people make better decisions
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button 
-                onClick={() => navigate('/contact')}
-                className="bg-white text-secondary hover:bg-gray-100 px-10 py-5 rounded-lg font-bold text-lg transition-all duration-300 shadow-xl hover:scale-105"
-              >
-                Schedule Free Consultation
-              </button>
-              <button 
-                onClick={() => navigate('/portfolio')}
-                className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-10 py-5 rounded-lg font-bold text-lg transition-all duration-300 hover:scale-105"
-              >
-                View Our Portfolio
-              </button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button size="lg" className="px-10 py-6 text-lg" onClick={() => navigate('/auth')}>
+                Get Started
+              </Button>
+              <Button size="lg" variant="outline" className="px-10 py-6 text-lg" onClick={() => navigate('/digital-services')}>
+                Explore Businesses
+              </Button>
             </div>
-            <p className="mt-8 text-sm text-white/80">
-              Or <button onClick={() => navigate('/search')} className="underline hover:text-white transition-colors">browse our business directory</button> to see our review platform in action
-            </p>
           </div>
         </div>
       </section>

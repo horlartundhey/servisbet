@@ -86,6 +86,12 @@ export const useBreadcrumbs = () => {
       
       // Generate breadcrumb based on path segment
       switch (segment) {
+        case 'digital-services':
+          breadcrumbs.push({
+            label: 'Digital Services',
+            href: isLast ? undefined : '/digital-services'
+          });
+          break;
         case 'businesses':
           breadcrumbs.push({
             label: 'Businesses',

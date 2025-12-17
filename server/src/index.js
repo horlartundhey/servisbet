@@ -27,6 +27,15 @@ app.use(cors(corsOptions));
 
 // REMOVED: app.options('*', cors(corsOptions)); - This was causing the error!
 
+// Remove X-Powered-By header and add custom headers
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Powered-By', 'React/Express');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  next();
+});
+
 app.use(express.json({ 
   limit: process.env.MAX_FILE_SIZE ? `${process.env.MAX_FILE_SIZE / (1024 * 1024)}mb` : '10mb' 
 }));

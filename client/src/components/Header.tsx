@@ -109,20 +109,14 @@ const Header = () => {
 
           {/* Navigation - Desktop */}
           <nav className="hidden lg:flex items-center space-x-8">
-            <button 
-              onClick={() => scrollToSection('services')} 
-              className="text-foreground hover:text-primary transition-colors font-medium"
-            >
-              Services
-            </button>
-            <button 
-              onClick={() => scrollToSection('process')} 
-              className="text-foreground hover:text-primary transition-colors font-medium"
-            >
-              Process
-            </button>
+            <Link to="/digital-services" className="text-foreground hover:text-primary transition-colors font-medium">
+              Digital Services
+            </Link>
             <Link to="/portfolio" className="text-foreground hover:text-primary transition-colors font-medium">
               Portfolio
+            </Link>
+            <Link to="/contact" className="text-foreground hover:text-primary transition-colors font-medium">
+              Contact
             </Link>
             <Link to="/search" className="text-foreground/60 hover:text-primary transition-colors text-sm font-medium">
               Browse Businesses
@@ -222,24 +216,26 @@ const Header = () => {
         {mobileMenuOpen && (
           <div className="lg:hidden fixed inset-0 top-16 bg-background z-50 overflow-y-auto border-t">
             <nav className="flex flex-col p-6 space-y-4">
-              <button 
-                onClick={() => scrollToSection('services')} 
-                className="text-left text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+              <Link 
+                to="/digital-services" 
+                className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
               >
-                Services
-              </button>
-              <button 
-                onClick={() => scrollToSection('process')} 
-                className="text-left text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
-              >
-                Process
-              </button>
+                Digital Services
+              </Link>
               <Link 
                 to="/portfolio" 
                 className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Portfolio
+              </Link>
+              <Link 
+                to="/contact" 
+                className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Contact
               </Link>
               <Link 
                 to="/search" 
