@@ -67,7 +67,10 @@ app.use('/api/templates', require('./routes/template'));
 app.use('/api/subscription', require('./routes/subscription'));
 app.use('/api/flag', require('./routes/flag'));
 app.use('/api/admin', require('./routes/admin'));
+// Upload routes - general uploads (single/multiple)
 app.use('/api/upload', require('./routes/upload'));
+// Business-specific image upload routes (business-image, business-gallery)
+// Mounted on same path but different route handlers to avoid conflicts
 app.use('/api/upload', require('./routes/businessImageUpload'));
 app.use('/api/analytics', require('./routes/analytics'));
 

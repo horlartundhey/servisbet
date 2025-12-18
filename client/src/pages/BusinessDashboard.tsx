@@ -600,11 +600,11 @@ const BusinessDashboard = () => {
                   Add Business
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[85vh]">
-                <DialogHeader>
+              <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
                   <DialogTitle>Add New Business</DialogTitle>
                 </DialogHeader>
-                <div className="overflow-y-auto max-h-[calc(85vh-8rem)] pr-2">
+                <div className="overflow-y-auto flex-1 pr-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Business Name</label>
@@ -784,7 +784,7 @@ const BusinessDashboard = () => {
                 {/* Image Upload Section */}
                 <div className="mt-6 space-y-4 border-t pt-4">
                   <h3 className="text-sm font-semibold">Business Images</h3>
-                  <p className="text-xs text-muted-foreground">Logo is required. Cover image and gallery are optional but recommended.</p>
+                  <p className="text-xs text-muted-foreground">Only logo is required. Cover image and gallery images are optional but highly recommended for better visibility.</p>
                   
                   {/* Logo Upload */}
                   <div>
@@ -867,7 +867,7 @@ const BusinessDashboard = () => {
                   </div>
                 )}
 
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                <div className="flex justify-end gap-2 mt-6 pt-4 border-t sticky bottom-0 bg-background z-10">
                   <Button 
                     variant="outline" 
                     onClick={() => {
@@ -885,10 +885,7 @@ const BusinessDashboard = () => {
                       !newBusinessForm.name?.trim() ||
                       !newBusinessForm.category ||
                       !newBusinessForm.description?.trim() ||
-                      !newBusinessForm.logoFile ||
-                      !newBusinessForm.coverFile ||
-                      !newBusinessForm.galleryFiles ||
-                      newBusinessForm.galleryFiles.length < 2
+                      !newBusinessForm.logoFile
                     }
                   >
                     {isCreatingBusiness ? (

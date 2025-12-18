@@ -14,7 +14,20 @@ const errorHandler = (err, req, res, next) => {
 
   // Mongoose duplicate key
   if (err.code === 11000) {
-    const message = 'Duplicate field value entered';
+    const field = Object.keys(err.keyPattern || {})[0];
+    let message = 'Duplicate field value entered';
+    
+    // Provide more specific error messages
+    if (field === 'businessSlug') {
+      message = 'A business with this name already exists. Please use a different name.';
+    } else if (field === 'businessEmail') {
+      message = 'This email address is already registered to another business.';
+    } else if (field === 'businessPhone') {
+      message = 'This phone number is already registered to another business.';
+    } else if (field) {
+      message = `This ${field} is already in use. Please use a different value.`;
+    }
+    
     error = { message, statusCode: 400 };
   }
 
