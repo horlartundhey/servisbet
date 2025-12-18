@@ -600,27 +600,33 @@ const BusinessDashboard = () => {
                   Add Business
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[95vh] overflow-hidden p-0">
-                <div className="flex flex-col h-full">
-                  <DialogHeader className="px-6 py-4 border-b">
-                    <DialogTitle>Add New Business</DialogTitle>
-                  </DialogHeader>
-                  <div className="overflow-y-auto flex-1 px-6 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0 gap-0">
+                <DialogHeader className="px-6 pt-6 pb-4 space-y-2 border-b bg-gradient-to-r from-background to-muted/20">
+                  <DialogTitle className="text-2xl font-bold">Add New Business</DialogTitle>
+                  <p className="text-sm text-muted-foreground">Fill in the details below. Only logo and basic info are required.</p>
+                </DialogHeader>
+                
+                <div className="overflow-y-auto px-6 py-6 space-y-6 max-h-[calc(90vh-180px)]">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Basic Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Business Name</label>
+                    <label className="text-sm font-medium mb-1.5 block">Business Name <span className="text-destructive">*</span></label>
                     <Input
+                      placeholder="Enter business name"
                       value={newBusinessForm.name}
                       onChange={(e) => setNewBusinessForm({...newBusinessForm, name: e.target.value})}
+                      className="h-10"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Category</label>
+                    <label className="text-sm font-medium mb-1.5 block">Category <span className="text-destructive">*</span></label>
                     <Select 
                       value={newBusinessForm.category} 
                       onValueChange={(value) => setNewBusinessForm({...newBusinessForm, category: value})}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-10">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
@@ -644,25 +650,44 @@ const BusinessDashboard = () => {
                     </Select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Phone</label>
+                    <label className="text-sm font-medium mb-1.5 block">Phone</label>
                     <Input
+                      placeholder="(555) 123-4567"
                       value={newBusinessForm.phone}
                       onChange={(e) => setNewBusinessForm({...newBusinessForm, phone: e.target.value})}
+                      className="h-10"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Email</label>
+                    <label className="text-sm font-medium mb-1.5 block">Email</label>
                     <Input
+                      type="email"
+                      placeholder="business@example.com"
                       value={newBusinessForm.email}
                       onChange={(e) => setNewBusinessForm({...newBusinessForm, email: e.target.value})}
+                      className="h-10"
                     />
                   </div>
                 </div>
                 
-                {/* Address Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Street Address *</label>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Description <span className="text-destructive">*</span></label>
+                  <Textarea
+                    placeholder="Describe your business and what makes it unique..."
+                    value={newBusinessForm.description}
+                    onChange={(e) => setNewBusinessForm({...newBusinessForm, description: e.target.value})}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+                </div>
+                
+                {/* Location */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Location</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="text-sm font-medium mb-1.5 block">Street Address <span className="text-destructive">*</span></label>
                     <Input
                       placeholder="123 Main Street"
                       value={newBusinessForm.address.street}
@@ -670,10 +695,11 @@ const BusinessDashboard = () => {
                         ...newBusinessForm, 
                         address: {...newBusinessForm.address, street: e.target.value}
                       })}
+                      className="h-10"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">City *</label>
+                    <label className="text-sm font-medium mb-1.5 block">City <span className="text-destructive">*</span></label>
                     <Input
                       placeholder="City"
                       value={newBusinessForm.address.city}
@@ -681,10 +707,11 @@ const BusinessDashboard = () => {
                         ...newBusinessForm, 
                         address: {...newBusinessForm.address, city: e.target.value}
                       })}
+                      className="h-10"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">State *</label>
+                    <label className="text-sm font-medium mb-1.5 block">State <span className="text-destructive">*</span></label>
                     <Input
                       placeholder="State"
                       value={newBusinessForm.address.state}
@@ -692,10 +719,11 @@ const BusinessDashboard = () => {
                         ...newBusinessForm, 
                         address: {...newBusinessForm.address, state: e.target.value}
                       })}
+                      className="h-10"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">ZIP Code *</label>
+                    <label className="text-sm font-medium mb-1.5 block">ZIP Code <span className="text-destructive">*</span></label>
                     <Input
                       placeholder="12345"
                       value={newBusinessForm.address.zipCode}
@@ -703,29 +731,98 @@ const BusinessDashboard = () => {
                         ...newBusinessForm, 
                         address: {...newBusinessForm.address, zipCode: e.target.value}
                       })}
+                      className="h-10"
                     />
                   </div>
                 </div>
-                <div className="mt-4">
-                  <label className="text-sm font-medium mb-2 block">Description <span className="text-red-500">*</span></label>
-                  <Textarea
-                    required
-                    value={newBusinessForm.description}
-                    onChange={(e) => setNewBusinessForm({...newBusinessForm, description: e.target.value})}
-                    rows={3}
-                  />
                 </div>
 
-                {/* Business Hours Section */}
-                <div className="mt-6 border-t pt-4">
-                  <h3 className="text-sm font-semibold mb-3">Business Hours (Optional)</h3>
-                  <div className="space-y-2 p-3 border rounded-lg bg-muted/20">
+                {/* Business Images */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Business Images</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium block">Logo <span className="text-destructive">*</span></label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setNewBusinessForm({
+                            ...newBusinessForm,
+                            logoFile: file
+                          });
+                        }
+                      }}
+                      className="cursor-pointer"
+                    />
+                    {newBusinessForm.logoFile && (
+                      <p className="text-xs text-muted-foreground">
+                        ✓ {newBusinessForm.logoFile.name}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium block">Cover Image <span className="text-xs text-muted-foreground font-normal">(optional)</span></label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setNewBusinessForm({
+                            ...newBusinessForm,
+                            coverFile: file
+                          });
+                        }
+                      }}
+                      className="cursor-pointer"
+                    />
+                    {newBusinessForm.coverFile && (
+                      <p className="text-xs text-muted-foreground">
+                        ✓ {newBusinessForm.coverFile.name}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium block">
+                      Gallery Images <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+                    </label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setNewBusinessForm({
+                          ...newBusinessForm,
+                          galleryFiles: files
+                        });
+                      }}
+                      className="cursor-pointer"
+                    />
+                    {newBusinessForm.galleryFiles && newBusinessForm.galleryFiles.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        ✓ {newBusinessForm.galleryFiles.length} image(s) selected
+                      </p>
+                    )}
+                  </div>
+                  </div>
+                </div>
+
+                {/* Business Hours - Collapsible */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Business Hours <span className="text-xs text-muted-foreground font-normal">(optional)</span></h3>
+                  <div className="border rounded-lg p-4 bg-muted/30 space-y-2.5">
                     {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-                      <div key={day} className="flex items-center gap-2 text-sm">
-                        <div className="w-24">
-                          <span className="capitalize font-medium">{day}</span>
+                      <div key={day} className="flex items-center gap-3 text-sm bg-background p-2 rounded">
+                        <div className="w-20 min-w-20">
+                          <span className="capitalize font-medium text-xs">{day}</span>
                         </div>
-                        <label className="flex items-center gap-1.5 cursor-pointer">
+                        <label className="flex items-center gap-1.5 cursor-pointer min-w-16">
                           <input
                             type="checkbox"
                             checked={!newBusinessForm.hours?.[day]?.closed}
@@ -741,12 +838,12 @@ const BusinessDashboard = () => {
                                 }
                               });
                             }}
-                            className="rounded"
+                            className="rounded w-4 h-4"
                           />
-                          <span className="text-xs">Open</span>
+                          <span className="text-xs font-medium">Open</span>
                         </label>
-                        {!newBusinessForm.hours?.[day]?.closed && (
-                          <>
+                        {!newBusinessForm.hours?.[day]?.closed ? (
+                          <div className="flex items-center gap-2 flex-1">
                             <Input
                               type="time"
                               value={newBusinessForm.hours?.[day]?.open || '09:00'}
@@ -757,9 +854,9 @@ const BusinessDashboard = () => {
                                   [day]: { ...newBusinessForm.hours?.[day], open: e.target.value }
                                 }
                               })}
-                              className="w-28 h-8 text-xs"
+                              className="w-32 h-8 text-xs"
                             />
-                            <span className="text-xs text-muted-foreground">to</span>
+                            <span className="text-xs text-muted-foreground">-</span>
                             <Input
                               type="time"
                               value={newBusinessForm.hours?.[day]?.close || '17:00'}
@@ -770,110 +867,32 @@ const BusinessDashboard = () => {
                                   [day]: { ...newBusinessForm.hours?.[day], close: e.target.value }
                                 }
                               })}
-                              className="w-28 h-8 text-xs"
+                              className="w-32 h-8 text-xs"
                             />
-                          </>
-                        )}
-                        {newBusinessForm.hours?.[day]?.closed && (
-                          <span className="text-xs text-muted-foreground italic">Closed</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic flex-1">Closed</span>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Image Upload Section */}
-                <div className="mt-6 space-y-4 border-t pt-4">
-                  <h3 className="text-sm font-semibold">Business Images</h3>
-                  <p className="text-xs text-muted-foreground">Only logo is required. Cover image and gallery images are optional but highly recommended for better visibility.</p>
-                  
-                  {/* Logo Upload */}
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Logo <span className="text-red-500">*</span></label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setNewBusinessForm({
-                            ...newBusinessForm,
-                            logoFile: file
-                          });
-                        }
-                      }}
-                    />
-                    {newBusinessForm.logoFile && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Selected: {newBusinessForm.logoFile.name}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Cover Image Upload */}
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Cover Image <span className="text-xs text-muted-foreground">(optional)</span></label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setNewBusinessForm({
-                            ...newBusinessForm,
-                            coverFile: file
-                          });
-                        }
-                      }}
-                    />
-                    {newBusinessForm.coverFile && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Selected: {newBusinessForm.coverFile.name}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Gallery Images Upload */}
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Gallery Images <span className="text-xs text-muted-foreground">(optional)</span>
-                      <span className="text-xs text-muted-foreground ml-2">- showcase your business</span>
-                    </label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        setNewBusinessForm({
-                          ...newBusinessForm,
-                          galleryFiles: files
-                        });
-                      }}
-                    />
-                    {newBusinessForm.galleryFiles && newBusinessForm.galleryFiles.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Selected: {newBusinessForm.galleryFiles.length} image(s)
-                      </p>
-                    )}
-                  </div>
-                </div>
-
                 {/* Error Message */}
                 {createBusinessError && (
-                  <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                  <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive">
                     <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm">{createBusinessError}</p>
+                    <p className="text-sm font-medium">{createBusinessError}</p>
                   </div>
                 )}
                 </div>
 
-                {/* Footer with Buttons */}
-                <div className="flex items-center justify-between gap-3 px-6 py-4 border-t bg-muted/30">
-                  <p className="text-xs text-muted-foreground">
-                    Only logo is required. Other fields help improve visibility.
+                {/* Footer */}
+                <div className="sticky bottom-0 flex items-center justify-between gap-3 px-6 py-4 border-t bg-background shadow-lg">
+                  <p className="text-xs text-muted-foreground hidden sm:block">
+                    <span className="font-medium">Required:</span> Logo, Name, Category, Description & Address
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-3 w-full sm:w-auto">
                     <Button 
                       variant="outline" 
                       onClick={() => {
@@ -881,6 +900,7 @@ const BusinessDashboard = () => {
                         setCreateBusinessError(null);
                       }}
                       disabled={isCreatingBusiness}
+                      className="flex-1 sm:flex-initial"
                     >
                       Cancel
                     </Button>
@@ -893,6 +913,7 @@ const BusinessDashboard = () => {
                         !newBusinessForm.description?.trim() ||
                         !newBusinessForm.logoFile
                       }
+                      className="flex-1 sm:flex-initial"
                     >
                       {isCreatingBusiness ? (
                         <>
@@ -900,11 +921,13 @@ const BusinessDashboard = () => {
                           Creating...
                         </>
                       ) : (
-                        'Create Business'
+                        <>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Business
+                        </>
                       )}
                     </Button>
                   </div>
-                </div>
                 </div>
               </DialogContent>
             </Dialog>
