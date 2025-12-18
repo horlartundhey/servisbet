@@ -600,11 +600,12 @@ const BusinessDashboard = () => {
                   Add Business
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-                <DialogHeader className="flex-shrink-0">
-                  <DialogTitle>Add New Business</DialogTitle>
-                </DialogHeader>
-                <div className="overflow-y-auto flex-1 pr-2">
+              <DialogContent className="max-w-3xl max-h-[95vh] overflow-hidden p-0">
+                <div className="flex flex-col h-full">
+                  <DialogHeader className="px-6 py-4 border-b">
+                    <DialogTitle>Add New Business</DialogTitle>
+                  </DialogHeader>
+                  <div className="overflow-y-auto flex-1 px-6 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Business Name</label>
@@ -861,42 +862,50 @@ const BusinessDashboard = () => {
 
                 {/* Error Message */}
                 {createBusinessError && (
-                  <div className="flex items-start gap-2 p-3 mt-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                  <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
                     <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                     <p className="text-sm">{createBusinessError}</p>
                   </div>
                 )}
+                </div>
 
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t sticky bottom-0 bg-background z-10">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setIsNewBusinessDialogOpen(false);
-                      setCreateBusinessError(null);
-                    }}
-                    disabled={isCreatingBusiness}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleCreateBusiness}
-                    disabled={
-                      isCreatingBusiness ||
-                      !newBusinessForm.name?.trim() ||
-                      !newBusinessForm.category ||
-                      !newBusinessForm.description?.trim() ||
-                      !newBusinessForm.logoFile
-                    }
-                  >
-                    {isCreatingBusiness ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating Business...
-                      </>
-                    ) : (
-                      'Create Business'
-                    )}
-                  </Button>
+                {/* Footer with Buttons */}
+                <div className="flex items-center justify-between gap-3 px-6 py-4 border-t bg-muted/30">
+                  <p className="text-xs text-muted-foreground">
+                    Only logo is required. Other fields help improve visibility.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsNewBusinessDialogOpen(false);
+                        setCreateBusinessError(null);
+                      }}
+                      disabled={isCreatingBusiness}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleCreateBusiness}
+                      disabled={
+                        isCreatingBusiness ||
+                        !newBusinessForm.name?.trim() ||
+                        !newBusinessForm.category ||
+                        !newBusinessForm.description?.trim() ||
+                        !newBusinessForm.logoFile
+                      }
+                    >
+                      {isCreatingBusiness ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        'Create Business'
+                      )}
+                    </Button>
+                  </div>
+                </div>
                 </div>
               </DialogContent>
             </Dialog>
