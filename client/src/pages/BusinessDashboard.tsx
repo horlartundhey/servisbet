@@ -600,13 +600,13 @@ const BusinessDashboard = () => {
                   Add Business
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0 gap-0">
-                <DialogHeader className="px-6 pt-6 pb-4 space-y-2 border-b bg-gradient-to-r from-background to-muted/20">
+              <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0 gap-0 flex flex-col">
+                <DialogHeader className="px-6 pt-6 pb-4 space-y-2 border-b bg-gradient-to-r from-background to-muted/20 flex-shrink-0">
                   <DialogTitle className="text-2xl font-bold">Add New Business</DialogTitle>
                   <p className="text-sm text-muted-foreground">Fill in the details below. Only logo and basic info are required.</p>
                 </DialogHeader>
                 
-                <div className="overflow-y-auto px-6 py-6 space-y-6 max-h-[calc(90vh-180px)]">
+                <div className="overflow-y-auto px-6 py-6 space-y-6 flex-1">
                 {/* Basic Information */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Basic Information</h3>
@@ -887,8 +887,8 @@ const BusinessDashboard = () => {
                 )}
                 </div>
 
-                {/* Footer */}
-                <div className="sticky bottom-0 flex items-center justify-between gap-3 px-6 py-4 border-t bg-background shadow-lg">
+                {/* Footer - Fixed at bottom */}
+                <div className="flex items-center justify-between gap-3 px-6 py-4 border-t bg-background shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex-shrink-0">
                   <p className="text-xs text-muted-foreground hidden sm:block">
                     <span className="font-medium">Required:</span> Logo, Name, Category, Description & Address
                   </p>
