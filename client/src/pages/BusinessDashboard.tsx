@@ -858,7 +858,6 @@ const BusinessDashboard = () => {
                     )}
                   </div>
                 </div>
-                </div>
 
                 {/* Error Message */}
                 {createBusinessError && (
