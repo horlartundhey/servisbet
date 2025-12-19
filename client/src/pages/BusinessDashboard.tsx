@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Building2, Star, Crown, Settings, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Building2, Star, Crown, Settings, Loader2, AlertCircle, Upload, CheckCircle } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import businessService, { Business, CreateBusinessData } from "../services/businessService";
 import { reviewService } from "../services/reviewService";
@@ -741,74 +741,138 @@ const BusinessDashboard = () => {
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Business Images</h3>
                   <div className="grid grid-cols-1 gap-4">
+                  
+                  {/* Logo Upload */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium block">Logo <span className="text-destructive">*</span></label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setNewBusinessForm({
-                            ...newBusinessForm,
-                            logoFile: file
-                          });
-                        }
-                      }}
-                      className="cursor-pointer"
-                    />
-                    {newBusinessForm.logoFile && (
-                      <p className="text-xs text-muted-foreground">
-                        ✓ {newBusinessForm.logoFile.name}
-                      </p>
-                    )}
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="file"
+                        id="logo-upload"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setNewBusinessForm({
+                              ...newBusinessForm,
+                              logoFile: file
+                            });
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('logo-upload')?.click()}
+                        className="w-full h-20 border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <Upload className="w-6 h-6" />
+                          <span className="text-sm font-medium">
+                            {newBusinessForm.logoFile ? 'Change Logo' : 'Upload Logo'}
+                          </span>
+                        </div>
+                      </Button>
+                      {newBusinessForm.logoFile && (
+                        <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                          <p className="text-sm font-medium text-primary truncate">
+                            {newBusinessForm.logoFile.name}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
+                  {/* Cover Image Upload */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium block">Cover Image <span className="text-xs text-muted-foreground font-normal">(optional)</span></label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setNewBusinessForm({
-                            ...newBusinessForm,
-                            coverFile: file
-                          });
-                        }
-                      }}
-                      className="cursor-pointer"
-                    />
-                    {newBusinessForm.coverFile && (
-                      <p className="text-xs text-muted-foreground">
-                        ✓ {newBusinessForm.coverFile.name}
-                      </p>
-                    )}
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="file"
+                        id="cover-upload"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setNewBusinessForm({
+                              ...newBusinessForm,
+                              coverFile: file
+                            });
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('cover-upload')?.click()}
+                        className="w-full h-20 border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <Upload className="w-6 h-6" />
+                          <span className="text-sm font-medium">
+                            {newBusinessForm.coverFile ? 'Change Cover Image' : 'Upload Cover Image'}
+                          </span>
+                        </div>
+                      </Button>
+                      {newBusinessForm.coverFile && (
+                        <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                          <p className="text-sm font-medium text-primary truncate">
+                            {newBusinessForm.coverFile.name}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
+                  {/* Gallery Images Upload */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium block">
                       Gallery Images <span className="text-xs text-muted-foreground font-normal">(optional)</span>
                     </label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        setNewBusinessForm({
-                          ...newBusinessForm,
-                          galleryFiles: files
-                        });
-                      }}
-                      className="cursor-pointer"
-                    />
-                    {newBusinessForm.galleryFiles && newBusinessForm.galleryFiles.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        ✓ {newBusinessForm.galleryFiles.length} image(s) selected
-                      </p>
-                    )}
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="file"
+                        id="gallery-upload"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          setNewBusinessForm({
+                            ...newBusinessForm,
+                            galleryFiles: files
+                          });
+                        }}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('gallery-upload')?.click()}
+                        className="w-full h-20 border-2 border-dashed hover:border-primary hover:bg-primary/5 transition-colors"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <Upload className="w-6 h-6" />
+                          <span className="text-sm font-medium">
+                            {newBusinessForm.galleryFiles && newBusinessForm.galleryFiles.length > 0
+                              ? 'Change Gallery Images'
+                              : 'Upload Gallery Images'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">You can select multiple images</span>
+                        </div>
+                      </Button>
+                      {newBusinessForm.galleryFiles && newBusinessForm.galleryFiles.length > 0 && (
+                        <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                          <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                          <p className="text-sm font-medium text-primary">
+                            {newBusinessForm.galleryFiles.length} image(s) selected
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   </div>
                 </div>
