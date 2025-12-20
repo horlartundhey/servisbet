@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Building2, Star, Crown, Settings, Loader2, AlertCircle, Upload, CheckCircle } from "lucide-react";
+import { Plus, Building2, Star, Crown, Settings, Loader2, AlertCircle, Upload, CheckCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import businessService, { Business, CreateBusinessData } from "../services/businessService";
 import { reviewService } from "../services/reviewService";
@@ -101,7 +101,7 @@ function BusinessVerificationUpload({ selectedBusiness }: { selectedBusiness: an
     setStatus('uploading');
     setError(null);
     try {
-      await businessService.uploadVerificationDocuments(selectedBusiness._id, registrationDoc, ownerId, notes);
+      const response = await businessService.uploadVerificationDocuments(selectedBusiness._id, registrationDoc, ownerId, notes);
       setStatus('success');
       // Clear form after successful upload
       setRegistrationDoc(null);
@@ -109,6 +109,15 @@ function BusinessVerificationUpload({ selectedBusiness }: { selectedBusiness: an
       setRegistrationPreview(null);
       setOwnerIdPreview(null);
       setNotes('');
+      // Update selected business immediately with new verification status
+      if (selectedBusiness) {
+        setSelectedBusiness({
+          ...selectedBusiness,
+          verificationStatus: 'pending'
+        });
+      }
+      // Refresh businesses to ensure data is in sync
+      await loadBusinesses();
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || 'Upload failed.';
       setError(errorMessage);
@@ -253,6 +262,8 @@ const BusinessDashboard = () => {
   const [isNewBusinessDialogOpen, setIsNewBusinessDialogOpen] = useState(false);
   const [isCreatingBusiness, setIsCreatingBusiness] = useState(false);
   const [createBusinessError, setCreateBusinessError] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [newlyCreatedBusiness, setNewlyCreatedBusiness] = useState<any>(null);
   
   const [businessInfo, setBusinessInfo] = useState({
     name: '',
@@ -441,9 +452,9 @@ const BusinessDashboard = () => {
       };
       
       console.log('Creating business with payload:', payload);
-      await businessService.createAdditionalBusiness(payload);
+      const createdBusiness = await businessService.createAdditionalBusiness(payload);
       
-      // Success - close dialog and reset form
+      // Success - close dialog, reset form, and show success modal
       setIsNewBusinessDialogOpen(false);
       setNewBusinessForm({
         name: '',
@@ -465,6 +476,8 @@ const BusinessDashboard = () => {
         galleryFiles: []
       });
       setCreateBusinessError(null);
+      setNewlyCreatedBusiness(createdBusiness);
+      setShowSuccessModal(true);
       await loadBusinesses();
     } catch (error: any) {
       console.error('Error creating business:', error);
@@ -1429,6 +1442,92 @@ const BusinessDashboard = () => {
           </Tabs>
         )}
       </div>
+
+      {/* Success Modal - Business Creation */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-2xl">Business Created Successfully! 🎉</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Success Message */}
+            <div className="text-center space-y-2">
+              <p className="text-lg font-semibold text-gray-900">
+                Welcome to {newlyCreatedBusiness?.businessName || 'your new business'}!
+              </p>
+              <p className="text-sm text-gray-600">
+                Your business profile has been created. Now let's get you set up for success.
+              </p>
+            </div>
+
+            {/* What's Next Section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+                <ArrowRight className="w-5 h-5" />
+                Next Steps: Complete Your Business Onboarding
+              </h3>
+              
+              <ul className="space-y-2 text-sm text-blue-800">
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-6">1.</span>
+                  <span><strong>Add Business Details:</strong> Complete your business description, hours, and contact information</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-6">2.</span>
+                  <span><strong>Upload Images:</strong> Add quality photos of your business (logo, cover, gallery)</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-6">3.</span>
+                  <span><strong>Submit Documents:</strong> Upload your business registration and owner ID for verification</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-6">4.</span>
+                  <span><strong>Get Verified:</strong> Our admins will review and approve your business</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Why It Matters */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h4 className="font-semibold text-amber-900 mb-2">Why Complete Onboarding?</h4>
+              <p className="text-sm text-amber-800">
+                A complete and verified business profile helps customers trust you, improves your visibility in search results, and enables you to manage reviews and respond to customer feedback. It's essential for growing your business online.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowSuccessModal(false)}
+                className="flex-1"
+              >
+                Maybe Later
+              </Button>
+              <Button 
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  // Scroll to the onboarding section or tab
+                  const onboardingTab = document.querySelector('[value="onboarding"]');
+                  if (onboardingTab) {
+                    onboardingTab.click();
+                  }
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                <ArrowRight className="w-4 h-4 mr-2" />
+                Start Onboarding Now
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

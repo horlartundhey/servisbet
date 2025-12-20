@@ -26,9 +26,12 @@ const errorHandler = (err, req, res, next) => {
       message = 'This email address is already registered to another business.';
     } else if (field === 'businessPhone') {
       message = 'This phone number is already registered to another business.';
+    } else if (field === 'email') {
+      message = 'This email address is already registered.';
     } else if (field === 'owner') {
-      // This shouldn't happen - owner is not unique
-      message = 'Database error: Owner field incorrectly marked as duplicate. Please contact support.';
+      // Owner is not unique - this error shouldn't occur. Log for debugging.
+      console.error('Unexpected unique constraint on owner field:', err);
+      message = 'An unexpected database error occurred. Please try again.';
     } else if (field) {
       message = `The ${field.replace(/([A-Z])/g, ' $1').toLowerCase()} "${value}" is already in use. Please use a different value.`;
     }

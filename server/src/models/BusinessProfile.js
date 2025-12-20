@@ -182,7 +182,7 @@ const businessProfileSchema = new mongoose.Schema({
 });
 
 // Indexes
-businessProfileSchema.index({ owner: 1 });
+// NOTE: Removed owner: 1 index - owner field should NOT be unique since we support multiple businesses per user
 businessProfileSchema.index({ owner: 1, isPrimary: 1 }); // For finding primary business
 businessProfileSchema.index({ businessName: 'text', businessDescription: 'text' });
 businessProfileSchema.index({ category: 1 });
@@ -338,6 +338,19 @@ businessProfileSchema.pre('save', async function(next) {
   
   // Check if profile is complete (business details + images + documents)
   this.isProfileComplete = this.isStepComplete(2) && this.isStepComplete(3);
+
+  // Automatically update verification status based on documents
+  // If documents have been uploaded and status is still 'incomplete', change to 'pending'
+  if (this.verificationDocs && this.verificationDocs.length > 0 && 
+      this.verificationStatus === 'incomplete') {
+    this.verificationStatus = 'pending';
+  }
+  // If all documents have been removed and status is 'pending', change back to 'incomplete'
+  if ((!this.verificationDocs || this.verificationDocs.length === 0) && 
+      this.verificationStatus === 'pending' && 
+      this.isModified('verificationDocs')) {
+    this.verificationStatus = 'incomplete';
+  }
   
   // Update verification status based on completion
   if (this.isProfileComplete) {

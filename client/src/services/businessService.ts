@@ -180,8 +180,9 @@ export const businessService = {
     formData.append('registrationDoc', registrationDoc);
     formData.append('ownerId', ownerId);
     if (notes) formData.append('notes', notes);
-    const response = await api.post(`/business/${businessId}/upload-documents`, formData, {
+    const response = await api.post(`/business-verification/${businessId}/upload-documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000 // 2 minutes - Cloudinary uploads can be slow, especially for larger files
     });
     return response.data;
   },

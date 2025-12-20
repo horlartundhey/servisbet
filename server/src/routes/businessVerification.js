@@ -238,11 +238,39 @@ router.post('/:id/upload-documents', verifyToken, requireRole('business', 'admin
   }
 
   try {
-    // Upload documents to Cloudinary with validation metadata
-    const [registrationDocResult, ownerIdResult] = await Promise.all([
-      uploadDocumentToCloudinary(registrationDoc.buffer, registrationDoc.originalname, businessId, 'registration', registrationValidation.metadata),
-      uploadDocumentToCloudinary(ownerId.buffer, ownerId.originalname, businessId, 'owner_id', ownerIdValidation.metadata)
-    ]);
+    // Upload documents to Cloudinary with validation metadata and individual error handling
+    let registrationDocResult, ownerIdResult;
+    
+    try {
+      registrationDocResult = await uploadDocumentToCloudinary(registrationDoc.buffer, registrationDoc.originalname, businessId, 'registration', registrationValidation.metadata);
+    } catch (error) {
+      console.error('Registration document upload failed:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upload registration document. Please try again.',
+        code: 'REGISTRATION_DOC_UPLOAD_FAILED',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
+    try {
+      ownerIdResult = await uploadDocumentToCloudinary(ownerId.buffer, ownerId.originalname, businessId, 'owner_id', ownerIdValidation.metadata);
+    } catch (error) {
+      console.error('Owner ID document upload failed:', error);
+      // Rollback: Delete the already uploaded registration document
+      try {
+        await cloudinary.uploader.destroy(registrationDocResult.publicId);
+        console.log('Rolled back registration document upload');
+      } catch (rollbackError) {
+        console.error('Failed to rollback registration document:', rollbackError);
+      }
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upload owner ID document. Please try again.',
+        code: 'OWNER_ID_UPLOAD_FAILED',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
 
     // Prepare verification docs data for MongoDB
     const verificationDocsData = [
