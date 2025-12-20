@@ -297,7 +297,13 @@ router.post('/:id/upload-documents', verifyToken, requireRole('business', 'admin
     business.verificationStatus = 'pending';
     business.lastVerificationSubmission = new Date();
     
-    const savedBusiness = await business.save();
+    console.log('Before save - verificationStatus:', business.verificationStatus);
+    console.log('Before save - verificationDocs count:', business.verificationDocs.length);
+    
+    const savedBusiness = await business.save({ validateBeforeSave: true });
+    
+    console.log('After save - verificationStatus:', savedBusiness.verificationStatus);
+    console.log('After save - verificationDocs count:', savedBusiness.verificationDocs.length);
 
     // TODO: Send notification email to admin about new verification request
     
@@ -307,8 +313,8 @@ router.post('/:id/upload-documents', verifyToken, requireRole('business', 'admin
       data: {
         business: {
           id: savedBusiness._id,
-          name: business.businessName,
-          verificationStatus: business.verificationStatus
+          name: savedBusiness.businessName,
+          verificationStatus: savedBusiness.verificationStatus
         },
         documents: [registrationDocResult, ownerIdResult]
       }
@@ -316,10 +322,29 @@ router.post('/:id/upload-documents', verifyToken, requireRole('business', 'admin
 
   } catch (error) {
     console.error('Document upload error:', error);
+    
+    // Provide specific error messages based on error type
+    let message = 'Failed to upload documents. Please try again.';
+    let code = 'DOCUMENT_UPLOAD_ERROR';
+    
+    if (error.message && error.message.includes('ECONNREFUSED')) {
+      message = 'Cannot connect to file storage service. Please try again later.';
+      code = 'STORAGE_SERVICE_ERROR';
+    } else if (error.message && error.message.includes('timeout')) {
+      message = 'Upload took too long. Please try again with smaller files.';
+      code = 'UPLOAD_TIMEOUT';
+    } else if (error.message) {
+      message = error.message;
+    }
+    
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to upload documents. Please try again.',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message,
+      code,
+      error: process.env.NODE_ENV === 'development' ? {
+        originalMessage: error.message,
+        stack: error.stack
+      } : undefined
     });
   }
 }));

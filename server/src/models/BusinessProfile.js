@@ -352,17 +352,9 @@ businessProfileSchema.pre('save', async function(next) {
     this.verificationStatus = 'incomplete';
   }
   
-  // Update verification status based on completion
-  if (this.isProfileComplete) {
-    if (this.verificationStatus === 'incomplete') {
-      this.verificationStatus = 'pending'; // Ready for admin review
-    }
-  } else {
-    // If profile becomes incomplete, reset status
-    if (this.verificationStatus === 'pending') {
-      this.verificationStatus = 'incomplete';
-    }
-  }
+  // NOTE: Do NOT reset verification status based on isProfileComplete
+  // Verification is a separate process that happens after documents are uploaded
+  // The admin will approve/reject regardless of whether the profile is 100% complete
   
   next();
 });

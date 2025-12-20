@@ -20,7 +20,7 @@ import AdvancedAnalyticsDashboard from '../components/AdvancedAnalyticsDashboard
 import BusinessImageManager from '../components/BusinessImageManager';
 
 // BusinessVerificationUpload component
-function BusinessVerificationUpload({ selectedBusiness }: { selectedBusiness: any }) {
+function BusinessVerificationUpload({ selectedBusiness, setSelectedBusiness, loadBusinesses, setShowDocumentSuccessModal }: { selectedBusiness: any; setSelectedBusiness: any; loadBusinesses: any; setShowDocumentSuccessModal: any }) {
   const [registrationDoc, setRegistrationDoc] = useState<File | null>(null);
   const [ownerId, setOwnerId] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
@@ -102,6 +102,8 @@ function BusinessVerificationUpload({ selectedBusiness }: { selectedBusiness: an
     setError(null);
     try {
       const response = await businessService.uploadVerificationDocuments(selectedBusiness._id, registrationDoc, ownerId, notes);
+      console.log('Document upload response:', response);
+      
       setStatus('success');
       // Clear form after successful upload
       setRegistrationDoc(null);
@@ -109,17 +111,32 @@ function BusinessVerificationUpload({ selectedBusiness }: { selectedBusiness: an
       setRegistrationPreview(null);
       setOwnerIdPreview(null);
       setNotes('');
-      // Update selected business immediately with new verification status
-      if (selectedBusiness) {
-        setSelectedBusiness({
-          ...selectedBusiness,
-          verificationStatus: 'pending'
-        });
-      }
-      // Refresh businesses to ensure data is in sync
-      await loadBusinesses();
+      
+      // Show success modal first
+      setShowDocumentSuccessModal(true);
+      
+      // Small delay to ensure database write is complete, then refresh
+      setTimeout(async () => {
+        console.log('Refreshing businesses after document upload...');
+        await loadBusinesses();
+      }, 500);
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || 'Upload failed.';
+      console.error('Document upload error:', err);
+      // Extract error message with better fallback
+      let errorMessage = 'Upload failed. Please try again.';
+      
+      if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err?.message) {
+        if (err.message.includes('timeout')) {
+          errorMessage = 'Upload took too long. Your files are large or your connection is slow. Please try again.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       setError(errorMessage);
       setStatus('error');
     }
@@ -263,6 +280,7 @@ const BusinessDashboard = () => {
   const [isCreatingBusiness, setIsCreatingBusiness] = useState(false);
   const [createBusinessError, setCreateBusinessError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showDocumentSuccessModal, setShowDocumentSuccessModal] = useState(false);
   const [newlyCreatedBusiness, setNewlyCreatedBusiness] = useState<any>(null);
   
   const [businessInfo, setBusinessInfo] = useState({
@@ -590,7 +608,7 @@ const BusinessDashboard = () => {
                   }
                 </DialogTitle>
               </DialogHeader>
-              <BusinessVerificationUpload selectedBusiness={selectedBusiness} />
+              <BusinessVerificationUpload selectedBusiness={selectedBusiness} setSelectedBusiness={setSelectedBusiness} loadBusinesses={loadBusinesses} setShowDocumentSuccessModal={setShowDocumentSuccessModal} />
             </DialogContent>
           </Dialog>
         </div>
@@ -1525,6 +1543,70 @@ const BusinessDashboard = () => {
                 Start Onboarding Now
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Modal - Document Upload */}
+      <Dialog open={showDocumentSuccessModal} onOpenChange={setShowDocumentSuccessModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-2xl">Documents Submitted Successfully! ✓</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Success Message */}
+            <div className="text-center space-y-2">
+              <p className="text-lg font-semibold text-gray-900">
+                Your verification documents have been submitted
+              </p>
+              <p className="text-sm text-gray-600">
+                Your business status is now <span className="font-semibold text-blue-600">Verification Pending</span>
+              </p>
+            </div>
+
+            {/* What's Next Section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <h3 className="font-semibold text-blue-900">What happens next?</h3>
+              
+              <ul className="space-y-2 text-sm text-blue-800">
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-6">1.</span>
+                  <span><strong>Review:</strong> Our admin team will review your documents (typically within 24-48 hours)</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-6">2.</span>
+                  <span><strong>Notification:</strong> You'll receive an email once the review is complete</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold min-w-6">3.</span>
+                  <span><strong>Approval:</strong> Once approved, your business will be fully verified and visible to customers</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Tips Section */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h4 className="font-semibold text-amber-900 mb-2">💡 Tips for faster approval:</h4>
+              <ul className="text-sm text-amber-800 space-y-1">
+                <li>• Ensure all documents are clear and readable</li>
+                <li>• Use high-quality scans or photos</li>
+                <li>• Verify information matches your business registration</li>
+              </ul>
+            </div>
+
+            {/* Action Button */}
+            <Button 
+              onClick={() => setShowDocumentSuccessModal(false)}
+              className="w-full bg-green-600 hover:bg-green-700"
+            >
+              Got it, continue
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
